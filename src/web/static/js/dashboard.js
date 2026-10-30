@@ -93,47 +93,76 @@ function updateLightsAndFlow(gpioState, activeDir, activeColor, remaining) {
     const flowEl = document.getElementById('flow-' + dir);
     const badgeEl = document.getElementById('badge-' + dir);
 
-    // Bật/tắt đèn giao thông
+    // Bật/tắt đèn giao thông trên bản đồ SVG (dùng setAttribute cho SVGCircleElement)
     ['RED', 'YELLOW', 'GREEN'].forEach(color => {
       const lamp = document.getElementById(`${dir}-${color}`);
       if (!lamp) return;
-      lamp.className = 'visor-lamp ' + color.toLowerCase();
-      const isLit = Boolean(gpioState[dir] && gpioState[dir][color]);
+      const lower = color.toLowerCase();
+      const isLit = Boolean(gpioState && gpioState[dir] && gpioState[dir][color]);
+
+      lamp.setAttribute('class', `visor-lamp ${lower}${isLit ? ' active-' + lower : ''}`);
+
       if (isLit) {
-        lamp.classList.add(`active-${color.toLowerCase()}`);
+        if (color === 'RED') {
+          lamp.setAttribute('fill', '#ff2e2e');
+          lamp.setAttribute('stroke', '#fecaca');
+          lamp.setAttribute('stroke-width', '2.2');
+          lamp.setAttribute('filter', 'url(#glow-red)');
+        } else if (color === 'YELLOW') {
+          lamp.setAttribute('fill', '#fbbf24');
+          lamp.setAttribute('stroke', '#fef08a');
+          lamp.setAttribute('stroke-width', '2.2');
+          lamp.setAttribute('filter', 'url(#glow-yellow)');
+        } else if (color === 'GREEN') {
+          lamp.setAttribute('fill', '#00f59b');
+          lamp.setAttribute('stroke', '#a7f3d0');
+          lamp.setAttribute('stroke-width', '2.2');
+          lamp.setAttribute('filter', 'url(#glow-green)');
+        }
+      } else {
+        lamp.removeAttribute('filter');
+        lamp.setAttribute('stroke-width', '1.5');
+        if (color === 'RED') {
+          lamp.setAttribute('fill', '#2d1212');
+          lamp.setAttribute('stroke', '#4a1515');
+        } else if (color === 'YELLOW') {
+          lamp.setAttribute('fill', '#2d2212');
+          lamp.setAttribute('stroke', '#4a3715');
+        } else if (color === 'GREEN') {
+          lamp.setAttribute('fill', '#122d1f');
+          lamp.setAttribute('stroke', '#154a2a');
+        }
       }
 
-      // Đồng bộ nút bấm trong bảng kiểm tra thủ công
+      // Đồng bộ trạng thái sang mảng ledStates & nút bấm thủ công
+      if (typeof ledStates !== 'undefined' && ledStates[dir]) {
+        ledStates[dir][color] = isLit;
+      }
       const mBtn = document.getElementById(`btn-${dir}-${color}`);
       if (mBtn) {
         mBtn.classList.toggle('active', isLit);
       }
     });
 
-    // Cập nhật nhãn trạng thái và luồng di chuyển
-    if (isThisDirActive) {
-      if (activeColor === 'GREEN') {
-        if (badgeEl) {
-          badgeEl.textContent = `CHO ĐI (${remaining}s)`;
-          badgeEl.setAttribute('fill', '#34d399');
-        }
-        if (flowEl) flowEl.classList.add('flowing');
-      } else if (activeColor === 'YELLOW') {
-        if (badgeEl) {
-          badgeEl.textContent = `GIẢM TỐC (${remaining}s)`;
-          badgeEl.setAttribute('fill', '#fbbf24');
-        }
-        if (flowEl) flowEl.classList.remove('flowing');
-      } else {
-        if (badgeEl) {
-          badgeEl.textContent = 'DỪNG LẠI';
-          badgeEl.setAttribute('fill', '#f87171');
-        }
-        if (flowEl) flowEl.classList.remove('flowing');
+    // Cập nhật nhãn trạng thái trên bảng điện tử cạnh cột đèn
+    const dirGreen  = Boolean(gpioState && gpioState[dir] && gpioState[dir].GREEN);
+    const dirYellow = Boolean(gpioState && gpioState[dir] && gpioState[dir].YELLOW);
+
+    if (dirGreen) {
+      if (badgeEl) {
+        badgeEl.textContent = isThisDirActive && remaining != null ? `ĐÈN XANH (${remaining}s)` : 'ĐÈN XANH (ĐI)';
+        badgeEl.setAttribute('fill', '#34d399');
       }
+      if (flowEl) flowEl.classList.add('flowing');
+    } else if (dirYellow) {
+      if (badgeEl) {
+        badgeEl.textContent = isThisDirActive && remaining != null ? `ĐÈN VÀNG (${remaining}s)` : 'CHờ ĐỔI PHA';
+        badgeEl.setAttribute('fill', '#fbbf24');
+      }
+      if (flowEl) flowEl.classList.remove('flowing');
     } else {
       if (badgeEl) {
-        badgeEl.textContent = 'DỪNG LẠI';
+        badgeEl.textContent = 'ĐÈN ĐỎ (DỪNG)';
         badgeEl.setAttribute('fill', '#f87171');
       }
       if (flowEl) flowEl.classList.remove('flowing');
@@ -581,20 +610,26 @@ function updateStatus(data) {
   const hubCountdown = document.getElementById('hub-countdown');
   const hubStatus = document.getElementById('hub-status-txt');
 
-  hubDir.textContent = DIR_SHORT[activeDir] || '--';
-  hubCountdown.textContent = remaining + 's';
+  if (hubDir) hubDir.textContent = DIR_SHORT[activeDir] || '--';
+  if (hubCountdown) hubCountdown.textContent = remaining + 's';
   if (activeColor === 'GREEN') {
-    hubCountdown.style.color = '#10b981';
-    hubStatus.textContent = 'CHO PHÉP ĐI';
-    hubStatus.style.color = '#10b981';
+    if (hubCountdown) hubCountdown.setAttribute('fill', '#10b981');
+    if (hubStatus) {
+      hubStatus.textContent = 'CHO PHÉP ĐI';
+      hubStatus.setAttribute('fill', '#10b981');
+    }
   } else if (activeColor === 'YELLOW') {
-    hubCountdown.style.color = '#f59e0b';
-    hubStatus.textContent = 'ĐÈN VÀNG';
-    hubStatus.style.color = '#f59e0b';
+    if (hubCountdown) hubCountdown.setAttribute('fill', '#f59e0b');
+    if (hubStatus) {
+      hubStatus.textContent = 'ĐÈN VÀNG';
+      hubStatus.setAttribute('fill', '#f59e0b');
+    }
   } else {
-    hubCountdown.style.color = '#ef4444';
-    hubStatus.textContent = 'DỪNG LẠI';
-    hubStatus.style.color = '#ef4444';
+    if (hubCountdown) hubCountdown.setAttribute('fill', '#ef4444');
+    if (hubStatus) {
+      hubStatus.textContent = 'DỪNG LẠI';
+      hubStatus.setAttribute('fill', '#ef4444');
+    }
   }
 
   // Header số pha

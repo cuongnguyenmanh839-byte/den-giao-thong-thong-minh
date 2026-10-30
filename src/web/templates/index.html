@@ -614,16 +614,25 @@ body {
   display: block;
 }
 .realistic-svg-crossroad circle.visor-lamp {
-  transition: all 0.18s ease-out;
+  transition: all 0.15s ease-out;
 }
 .realistic-svg-crossroad circle.visor-lamp.active-red {
-  fill: #ef4444 !important; stroke: #fecaca !important; filter: url(#glow-red) !important;
+  fill: #ff2e2e !important;
+  stroke: #ffffff !important;
+  stroke-width: 2.2px !important;
+  filter: url(#glow-red) drop-shadow(0 0 10px #ff2e2e) !important;
 }
 .realistic-svg-crossroad circle.visor-lamp.active-yellow {
-  fill: #f59e0b !important; stroke: #fef08a !important; filter: url(#glow-yellow) !important;
+  fill: #fbbf24 !important;
+  stroke: #ffffff !important;
+  stroke-width: 2.2px !important;
+  filter: url(#glow-yellow) drop-shadow(0 0 10px #fbbf24) !important;
 }
 .realistic-svg-crossroad circle.visor-lamp.active-green {
-  fill: #10b981 !important; stroke: #a7f3d0 !important; filter: url(#glow-green) !important;
+  fill: #00f59b !important;
+  stroke: #ffffff !important;
+  stroke-width: 2.2px !important;
+  filter: url(#glow-green) drop-shadow(0 0 10px #00f59b) !important;
 }
 .svg-car { transition: all 0.3s ease; }
 .svg-car.svg-car-moving { animation: svgCarPulse 1.1s infinite ease-in-out; }
@@ -1341,24 +1350,24 @@ body {
             <!-- BẮC (NORTH - Pin 2,3,4) -->
             <g transform="translate(412, 54)">
               <rect x="0" y="0" width="32" height="86" rx="9" fill="#080d18" stroke="#38bdf8" stroke-width="1.8" stroke-opacity="0.7"/>
-              <circle id="NORTH-RED" class="visor-lamp red" cx="16" cy="18" r="10" fill="#2d1212" stroke="#4a1515" stroke-width="1.5"/>
+              <circle id="NORTH-RED" class="visor-lamp red active-red" cx="16" cy="18" r="10" fill="#ff2e2e" stroke="#fecaca" stroke-width="2.2" filter="url(#glow-red)"/>
               <circle id="NORTH-YELLOW" class="visor-lamp yellow" cx="16" cy="43" r="10" fill="#2d2212" stroke="#4a3715" stroke-width="1.5"/>
               <circle id="NORTH-GREEN" class="visor-lamp green" cx="16" cy="68" r="10" fill="#122d1f" stroke="#154a2a" stroke-width="1.5"/>
               <rect x="38" y="14" width="82" height="56" rx="9" fill="#090f1d" stroke="#334155" stroke-width="1.5"/>
               <text x="79" y="30" font-size="10" fill="#38bdf8" font-weight="800" text-anchor="middle">BẮC (P2-4)</text>
-              <text id="badge-NORTH" x="79" y="45" font-size="9" fill="#f87171" font-weight="800" text-anchor="middle">DỪNG LẠI</text>
+              <text id="badge-NORTH" x="79" y="45" font-size="9" fill="#f87171" font-weight="800" text-anchor="middle">ĐÈN ĐỎ (DỪNG)</text>
               <text id="cnt-NORTH" x="79" y="60" font-size="9" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-weight="700" text-anchor="middle">🚗 0 xe</text>
             </g>
 
             <!-- NAM (SOUTH - Pin 5,6,7) -->
             <g transform="translate(156, 456)">
               <rect x="0" y="0" width="32" height="86" rx="9" fill="#080d18" stroke="#38bdf8" stroke-width="1.8" stroke-opacity="0.7"/>
-              <circle id="SOUTH-RED" class="visor-lamp red" cx="16" cy="18" r="10" fill="#2d1212" stroke="#4a1515" stroke-width="1.5"/>
+              <circle id="SOUTH-RED" class="visor-lamp red active-red" cx="16" cy="18" r="10" fill="#ff2e2e" stroke="#fecaca" stroke-width="2.2" filter="url(#glow-red)"/>
               <circle id="SOUTH-YELLOW" class="visor-lamp yellow" cx="16" cy="43" r="10" fill="#2d2212" stroke="#4a3715" stroke-width="1.5"/>
               <circle id="SOUTH-GREEN" class="visor-lamp green" cx="16" cy="68" r="10" fill="#122d1f" stroke="#154a2a" stroke-width="1.5"/>
               <rect x="-88" y="14" width="82" height="56" rx="9" fill="#090f1d" stroke="#334155" stroke-width="1.5"/>
               <text x="-47" y="30" font-size="10" fill="#38bdf8" font-weight="800" text-anchor="middle">NAM (P5-7)</text>
-              <text id="badge-SOUTH" x="-47" y="45" font-size="9" fill="#f87171" font-weight="800" text-anchor="middle">DỪNG LẠI</text>
+              <text id="badge-SOUTH" x="-47" y="45" font-size="9" fill="#f87171" font-weight="800" text-anchor="middle">ĐÈN ĐỎ (DỪNG)</text>
               <text id="cnt-SOUTH" x="-47" y="60" font-size="9" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-weight="700" text-anchor="middle">🚗 0 xe</text>
             </g>
 
@@ -1367,22 +1376,22 @@ body {
               <rect x="0" y="0" width="86" height="32" rx="9" fill="#080d18" stroke="#38bdf8" stroke-width="1.8" stroke-opacity="0.7"/>
               <circle id="EAST-RED" class="visor-lamp red" cx="18" cy="16" r="10" fill="#2d1212" stroke="#4a1515" stroke-width="1.5"/>
               <circle id="EAST-YELLOW" class="visor-lamp yellow" cx="43" cy="16" r="10" fill="#2d2212" stroke="#4a3715" stroke-width="1.5"/>
-              <circle id="EAST-GREEN" class="visor-lamp green" cx="68" cy="16" r="10" fill="#122d1f" stroke="#154a2a" stroke-width="1.5"/>
+              <circle id="EAST-GREEN" class="visor-lamp green active-green" cx="68" cy="16" r="10" fill="#00f59b" stroke="#a7f3d0" stroke-width="2.2" filter="url(#glow-green)"/>
               <rect x="2" y="38" width="82" height="56" rx="9" fill="#090f1d" stroke="#334155" stroke-width="1.5"/>
               <text x="43" y="54" font-size="10" fill="#38bdf8" font-weight="800" text-anchor="middle">ĐÔNG (P8-10)</text>
-              <text id="badge-EAST" x="43" y="69" font-size="9" fill="#f87171" font-weight="800" text-anchor="middle">DỪNG LẠI</text>
+              <text id="badge-EAST" x="43" y="69" font-size="9" fill="#34d399" font-weight="800" text-anchor="middle">ĐÈN XANH (ĐI)</text>
               <text id="cnt-EAST" x="43" y="84" font-size="9" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-weight="700" text-anchor="middle">🚗 0 xe</text>
             </g>
 
             <!-- TÂY (WEST - Pin 11,12,13) -->
             <g transform="translate(60, 156)">
               <rect x="0" y="0" width="86" height="32" rx="9" fill="#080d18" stroke="#38bdf8" stroke-width="1.8" stroke-opacity="0.7"/>
-              <circle id="WEST-RED" class="visor-lamp red" cx="18" cy="16" r="10" fill="#2d1212" stroke="#4a1515" stroke-width="1.5"/>
+              <circle id="WEST-RED" class="visor-lamp red active-red" cx="18" cy="16" r="10" fill="#ff2e2e" stroke="#fecaca" stroke-width="2.2" filter="url(#glow-red)"/>
               <circle id="WEST-YELLOW" class="visor-lamp yellow" cx="43" cy="16" r="10" fill="#2d2212" stroke="#4a3715" stroke-width="1.5"/>
               <circle id="WEST-GREEN" class="visor-lamp green" cx="68" cy="16" r="10" fill="#122d1f" stroke="#154a2a" stroke-width="1.5"/>
               <rect x="2" y="-62" width="82" height="56" rx="9" fill="#090f1d" stroke="#334155" stroke-width="1.5"/>
               <text x="43" y="-46" font-size="10" fill="#38bdf8" font-weight="800" text-anchor="middle">TÂY (P11-13)</text>
-              <text id="badge-WEST" x="43" y="-31" font-size="9" fill="#f87171" font-weight="800" text-anchor="middle">DỪNG LẠI</text>
+              <text id="badge-WEST" x="43" y="-31" font-size="9" fill="#f87171" font-weight="800" text-anchor="middle">ĐÈN ĐỎ (DỪNG)</text>
               <text id="cnt-WEST" x="43" y="-16" font-size="9" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-weight="700" text-anchor="middle">🚗 0 xe</text>
             </g>
           </svg>
@@ -1596,6 +1605,6 @@ body {
 
 </div>
 
-<script src="/static/js/dashboard.js?v=7.0"></script>
+<script src="/static/js/dashboard.js?v=8.0"></script>
 </body>
 </html>
