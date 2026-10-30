@@ -1,0 +1,223 @@
+================================================================================
+        BÁO CÁO THUYẾT MINH NGUYÊN LÝ HOẠT ĐỘNG VÀ CÁC TRẠNG THÁI HỆ THỐNG
+   HỆ THỐNG ĐÈN GIAO THÔNG THÔNG MINH 4 HƯỚNG ĐIỀU KHIỂN THEO MẬT ĐỘ PHƯƠNG TIỆN
+                    BẰNG XỬ LÝ ẢNH TRÊN RASPBERRY PI 5
+================================================================================
+
+Tác giả: Nhóm Đồ Án / Đề Tài Nghiên Cứu
+Nền tảng: Raspberry Pi 5 (Master) + Arduino Uno R3 (Slave qua cổng COM/USB)
+Ngôn ngữ & Thư viện: Python 3.13, C/C++ (Arduino), OpenCV, Flask, PySerial, SQLite
+
+────────────────────────────────────────────────────────────────────────────────
+PHẦN 1: TỔNG QUAN KIẾN TRÚC PHẦN CỨNG & SƠ ĐỒ ĐẤU DÂY ARDUINO UNO R3
+────────────────────────────────────────────────────────────────────────────────
+
+1.1. Danh mục thiết bị:
+- 01 x Bo mạch máy tính đơn Raspberry Pi 5 (Xử lý ảnh Camera, Thuật toán AI & Web Server).
+- 01 x Bo mạch vi điều khiển trung gian Arduino Uno R3 (Kết nối với Pi 5 qua cáp USB COM `/dev/ttyACM0` hoặc `/dev/ttyUSB0`).
+- 12 x Đèn LED giao thông (4 cụm đèn Đỏ - Vàng - Xanh tương ứng 4 hướng Bắc, Nam, Đông, Tây).
+- 12 x Điện trở hạn dòng (220 Ohm - 330 Ohm) bảo vệ chân Digital và LED.
+- 01 x Màn hình LCD 16x2 tích hợp mạch chuyển tiếp giao tiếp nối tiếp I2C PCF8574 (Cắm trên Arduino Uno).
+- 01 x Camera USB độ phân giải HD đặt quan sát giao lộ (Cắm trên Raspberry Pi 5).
+
+1.2. Sơ đồ gán chân Digital trên Arduino Uno R3 (Pin 2 → Pin 13):
+* Lưu ý: Chân 0 (RX) và 1 (TX) để trống dành cho giao tiếp USB Serial với Raspberry Pi.
+Mỗi hướng gồm 3 đèn: ĐỎ (Red), VÀNG (Yellow), XANH (Green).
+Các đèn đấu cực Dương (Anode) vào chân Digital (2→13) qua điện trở 220Ω, cực Âm (Cathode) nối GND chung của Arduino Uno.
+
++-----------+--------+------------------+------------------------------------+
+|  HƯỚNG    |  MÀU   | CHÂN ARDUINO UNO | VỊ TRÍ TRÊN BO ARDUINO UNO R3      |
++-----------+--------+------------------+------------------------------------+
+| BẮC       | ĐỎ     | Digital Pin 2    | Dãy Digital (2 → 7)                |
+| (NORTH)   | VÀNG   | Digital Pin 3    | Dãy Digital (2 → 7)                |
+|           | XANH   | Digital Pin 4    | Dãy Digital (2 → 7)                |
++-----------+--------+------------------+------------------------------------+
+| NAM       | ĐỎ     | Digital Pin 5    | Dãy Digital (2 → 7)                |
+| (SOUTH)   | VÀNG   | Digital Pin 6    | Dãy Digital (2 → 7)                |
+|           | XANH   | Digital Pin 7    | Dãy Digital (2 → 7)                |
++-----------+--------+------------------+------------------------------------+
+| ĐÔNG      | ĐỎ     | Digital Pin 8    | Dãy Digital (8 → 13)               |
+| (EAST)    | VÀNG   | Digital Pin 9    | Dãy Digital (8 → 13)               |
+|           | XANH   | Digital Pin 10   | Dãy Digital (8 → 13)               |
++-----------+--------+------------------+------------------------------------+
+| TÂY       | ĐỎ     | Digital Pin 11   | Dãy Digital (8 → 13)               |
+| (WEST)    | VÀNG   | Digital Pin 12   | Dãy Digital (8 → 13)               |
+|           | XANH   | Digital Pin 13   | Dãy Digital (8 → 13)               |
++-----------+--------+------------------+------------------------------------+
+
+1.3. Sơ đồ kết nối Màn hình LCD 16x2 I2C (Cắm trên Arduino Uno R3):
+- Chân GND  -> Nối chân GND của Arduino Uno R3.
+- Chân VCC  -> Nối chân 5V của Arduino Uno R3.
+- Chân SDA  -> Nối chân A4 (SDA) của Arduino Uno R3.
+- Chân SCL  -> Nối chân A5 (SCL) của Arduino Uno R3.
+- Địa chỉ I2C mặc định trên bus: 0x27 (hoặc 0x3F, code Arduino tự động quét).
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHẦN 2: NGUYÊN LÝ CHUYỂN PHA VÀ QUY TẮC AN TOÀN GIAO THÔNG
+────────────────────────────────────────────────────────────────────────────────
+
+2.1. Khái niệm Pha (Phase):
+Một pha giao thông được định nghĩa là khoảng thời gian cho phép một luồng phương tiện
+ở một hướng được phép lưu thông qua ngã tư, trong khi tất cả các luồng giao thông
+cắt ngang khác bắt buộc phải dừng lại.
+
+Chu kỳ đầy đủ gồm 4 pha luân phiên tuần hoàn:
+   ┌──────────┐      ┌──────────┐      ┌──────────┐      ┌──────────┐
+   │  Pha 1   │ ───> │  Pha 2   │ ───> │  Pha 3   │ ───> │  Pha 4   │ ───┐
+   │ Hướng ĐÔNG│      │ Hướng BẮC│      │ Hướng TÂY│      │ Hướng NAM│    │
+   └──────────┘      └──────────┘      └──────────┘      └──────────┘    │
+        ▲                                                                │
+        └────────────────────────────────────────────────────────────────┘
+
+2.2. Trạng thái đèn bên trong một Pha (Sub-states of a Phase):
+Mỗi pha bao gồm 3 trạng thái con diễn ra tuần tự:
+
+a. TRẠNG THÁI XANH (GREEN STATE):
+   - Hướng được ưu tiên: Bật đèn XANH (Cho phép xe đi).
+   - 3 Hướng còn lại: Bật đèn ĐỎ (Bắt buộc dừng lại sau vạch dừng).
+   - Thời gian duy trì: T_xanh (Từ 10s đến 60s tùy theo mật độ xe hoặc 30s cố định).
+
+b. TRẠNG THÁI VÀNG (YELLOW STATE):
+   - Hướng được ưu tiên: Tắt đèn XANH, Bật đèn VÀNG (Cảnh báo giảm tốc độ, chuẩn bị dừng).
+   - 3 Hướng còn lại: Tiếp tục duy trì đèn ĐỎ.
+   - Thời gian duy trì: Cố định 3 giây (Đúng quy chuẩn kỹ thuật an toàn giao thông).
+
+c. TRẠNG THÁI AN TOÀN TOÀN ĐỎ (ALL RED CLEARANCE STATE):
+   - Toàn bộ 4 hướng: Bật đèn ĐỎ trong 1 giây.
+   - Mục đích an toàn: Dành khoảng thời gian trống 1 giây để những xe đã lỡ tiến vào giữa
+     giao lộ trong pha vàng kịp thoát hết ra khỏi ngã tư trước khi hướng tiếp theo bật xanh.
+     Điều này triệt tiêu hoàn toàn nguy cơ đâm va giữa giao lộ.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHẦN 3: GIẢI THÍCH CHI TIẾT CÁC CHẾ ĐỘ HOẠT ĐỘNG (OPERATION MODES)
+────────────────────────────────────────────────────────────────────────────────
+
+Hệ thống được lập trình hỗ trợ 4 chế độ hoạt động linh hoạt:
+
+3.1. Chế độ CỐ ĐỊNH (FIXED MODE):
+- Nguyên lý: Thời gian đèn xanh của mỗi hướng là một hằng số cố định (Mặc định 30 giây).
+- Thứ tự luân chuyển: ĐÔNG (30s) -> BẮC (30s) -> TÂY (30s) -> NAM (30s).
+- Ứng dụng: Sử dụng vào khung giờ thấp điểm ban đêm, hoặc khi camera gặp sự cố/mất kết nối,
+  hệ thống sẽ tự động fallback về chế độ cố định để đảm bảo giao lộ luôn vận hành liên tục.
+
+3.2. Chế độ THÍCH NGHI THÔNG MINH BẰNG XỬ LÝ ẢNH (ADAPTIVE MODE - AI):
+- Nguyên lý: Thời gian đèn xanh không cố định mà biến thiên linh hoạt dựa trên dữ liệu
+  số lượng xe thực tế được camera đếm về theo thời gian thực (Real-time).
+- Công thức tính thời gian xanh thích nghi (Adaptive Green Time Calculation):
+  
+         T_xanh = T_min + (T_max - T_min) * (N_xe / (N_xe + K)) + W_penalty
+
+  Trong đó:
+  + T_min: Thời gian xanh tối thiểu (Mặc định 10 giây để đảm bảo đủ thời gian cho xe khởi hành).
+  + T_max: Thời gian xanh tối đa (Mặc định 60 giây để tránh một hướng xanh quá lâu gây ùn tắc các hướng khác).
+  + N_xe: Số lượng xe hiện đang phát hiện ở hướng chuẩn bị xanh.
+  + K: Hệ số bão hòa lưu lượng (K = 5 xe).
+  + W_penalty (Trọng số phạt thời gian chờ): Nếu một hướng đã phải chờ đèn đỏ quá lâu (Wait Time > 60s),
+    hệ thống sẽ tự động cộng thêm thời gian xanh cho hướng đó để tránh tình trạng "bỏ đói" (starvation)
+    các hướng có lượng xe ít.
+- Tự động nhảy pha (Dynamic Phase Skipping): Nếu một hướng hoàn toàn không có phương tiện nào (0 xe)
+  trong khi hướng đối diện đang ùn tắc lớn, hệ thống có thể rút ngắn thời gian xanh của hướng vắng xe
+  về mức tối thiểu (10s) để nhanh chóng nhường quyền ưu tiên cho hướng kẹt xe.
+
+3.3. Chế độ AN TOÀN / KHẨN CẤP (SAFE / EMERGENCY MODE):
+- Nguyên lý: Ngắt ngay lập tức chu kỳ bình thường, đồng loạt BẬT ĐÈN ĐỎ ở cả 4 hướng ngã tư.
+- Ứng dụng:
+  + Nhường đường ưu tiên cho xe Cứu hỏa, Xe cấp cứu, Đoàn xe hộ tống quân sự/VIP.
+  + Xử lý tình huống khẩn cấp khi có tai nạn giao thông tại tâm ngã tư.
+
+3.4. Chế độ KIỂM TRA THỦ CÔNG (MANUAL / HARDWARE TEST MODE):
+- Nguyên lý: Tạm dừng vòng lặp tự động, cho phép kỹ sư/người vận hành bật hoặc tắt từng
+  bóng đèn riêng lẻ trong 12 bóng LED hoặc kích hoạt chế độ "Bật Hết 12 Đèn", "Chạy thử lần lượt".
+- Ứng dụng: Bắt bệnh đứt dây, kiểm tra LED cháy bóng, rà soát cắm sai chân GPIO trên Raspberry Pi 5.
+- Khi người dùng nhấn "Quay lại chạy tự động", hệ thống lập tức trở về chế độ FIXED/ADAPTIVE
+  và bắt đầu ngay pha đèn xanh mới mà không bị trễ.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHẦN 4: NGUYÊN LÝ XỬ LÝ ẢNH & NHẬN DIỆN MẬT ĐỘ XE (OPENCV VISION MODULE)
+────────────────────────────────────────────────────────────────────────────────
+
+Quy trình nhận diện và đếm xe từ camera USB theo luồng xử lý:
+
+1. Thu nhận khung hình (Frame Capture): Camera thu nhận luồng video với tốc độ 20-30 FPS,
+   độ phân giải 640x480 pixel để tối ưu hóa hiệu năng CPU trên Pi 5.
+2. Tiền xử lý ảnh (Pre-processing):
+   - Chuyển ảnh màu RGB sang ảnh mức xám (Grayscale).
+   - Áp dụng bộ lọc Gaussian Blur để làm mịn ảnh và loại bỏ nhiễu hạt cảm biến camera.
+3. Phân tách chuyển động nền (Background Subtraction - MOG2):
+   - Sử dụng thuật toán BackgroundSubtractorMOG2 để tách các đối tượng đang chuyển động (Foreground)
+     ra khỏi khung cảnh tĩnh mặt đường (Background).
+4. Xử lý hình thái học (Morphological Operations):
+   - Phép Giãn (Dilation) và Đóng (Closing) để lấp các lỗ rỗng bên trong thân xe và kết nối
+     các khối pixel chuyển động rời rạc thành một khối xe hoàn chỉnh.
+5. Phân vùng quan sát 4 hướng (4 Regions of Interest - ROI):
+   - Khung hình được chia thành 4 vùng không gian tương ứng:
+     + ROI Bắc: Khu vực làn đường phía trên.
+     + ROI Nam: Khu vực làn đường phía dưới.
+     + ROI Đông: Khu vực làn đường bên phải.
+     + ROI Tây: Khu vực làn đường bên trái.
+6. Đếm phương tiện (Vehicle Counting & Filtering):
+   - Tìm các đường bao (Contours) trong từng ROI.
+   - Lọc bỏ nhiễu lá cây bay hoặc rung lắc bằng ngưỡng diện tích tối thiểu (Area Threshold > 500 px).
+   - Đóng khung Bounding Box và đếm số lượng xe thực tế của từng hướng chuyển về TrafficController.
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHẦN 5: MÔ HÌNH DỮ LIỆU JSON & GIAO TIẾP WEB DASHBOARD (API /api/status)
+────────────────────────────────────────────────────────────────────────────────
+
+Web Dashboard cập nhật trạng thái mỗi 1000ms thông qua gọi HTTP GET tới `/api/status`.
+Cấu trúc gói tin JSON trả về:
+
+{
+  "active_dir": "EAST",                 // Hướng đang có đèn xanh/vàng ("EAST", "NORTH", "WEST", "SOUTH")
+  "active_color": "GREEN",              // Màu đèn hiện tại của hướng active ("GREEN", "YELLOW", "RED")
+  "state": "GREEN",                     // Trạng thái pha hiện tại
+  "mode": "ADAPTIVE",                   // Chế độ đang chạy ("FIXED", "ADAPTIVE", "SAFE", "MANUAL")
+  "time_remaining": 25,                 // Số giây đếm ngược còn lại của trạng thái
+  "phase_count": 18,                    // Tổng số pha đã chuyển đổi kể từ khi khởi động
+  "gpio_sim": false,                    // false: Đang xuất trực tiếp 12 chân LED thật trên Pi 5
+  "gpio_state": {                       // Trạng thái bật (true) / tắt (false) của từng bóng đèn
+    "NORTH": { "RED": true,  "YELLOW": false, "GREEN": false },
+    "SOUTH": { "RED": true,  "YELLOW": false, "GREEN": false },
+    "EAST":  { "RED": false, "YELLOW": false, "GREEN": true  },
+    "WEST":  { "RED": true,  "YELLOW": false, "GREEN": false }
+  },
+  "vehicle_counts": {                   // Số lượng xe đếm được ở 4 hướng qua xử lý ảnh
+    "NORTH": 2, "SOUTH": 1, "EAST": 7, "WEST": 0
+  },
+  "wait_times": {                       // Thời gian các hướng đã phải chờ đèn đỏ (giây)
+    "NORTH": 32.5, "SOUTH": 32.5, "EAST": 0.0, "WEST": 32.5
+  },
+  "lcd_ok": false,                      // true: Có màn hình phần cứng I2C, false: Chạy mô phỏng online
+  "lcd_text": [                         // 2 dòng ký tự đang xuất ra màn hình LCD 16x2
+    "Dong: XANH      ",
+    "Con lai: 25s    "
+  ]
+}
+
+
+────────────────────────────────────────────────────────────────────────────────
+PHẦN 6: HƯỚNG DẪN VẬN HÀNH BẰNG 1 LỆNH DUY NHẤT
+────────────────────────────────────────────────────────────────────────────────
+
+1. Khởi động toàn bộ hệ thống bằng 1 lệnh:
+   Mở terminal ở bất kỳ đâu và gõ:
+   $ giaothong
+   (Hoặc nhấp đúp vào biểu tượng "Hệ Thống Đèn Giao Thông Pi 5" trên màn hình Desktop)
+
+2. Truy cập giao diện giám sát:
+   - Tại chỗ trên Raspberry Pi: http://localhost:5000
+   - Từ máy tính/điện thoại cùng mạng Wi-Fi: http://192.168.1.16:5000
+   - Trang camera chuyên dụng: http://192.168.1.16:5000/camera
+
+3. Dừng hệ thống an toàn:
+   Nhấn Ctrl + C trong cửa sổ terminal hoặc chạy lệnh:
+   $ stop-giaothong
+   (Toàn bộ 12 bóng LED sẽ tự động tắt an toàn trước khi tiến trình đóng hoàn toàn).
+
+================================================================================
+                               HẾT BÁO CÁO
+================================================================================

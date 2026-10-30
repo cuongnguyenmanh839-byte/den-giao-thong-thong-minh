@@ -1,0 +1,29 @@
+# Python virtual environment & bytecode
+venv/
+.venv/
+ENV/
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Runtime logs & databases
+logs/*.log
+logs/*.log.*
+run.log
+data/*.db
+data/*.db-journal
+.lgd-nfy*
+
+# AI model weights (large binary files)
+models/*.pt
+models/*.onnx
+
+# Archives & OS files
+*.zip
+*.tar.gz
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+

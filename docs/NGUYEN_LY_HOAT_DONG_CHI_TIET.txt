@@ -1,0 +1,524 @@
+================================================================================
+                    BÁO CÁO KHOA HỌC & THUYẾT MINH KỸ THUẬT CHI TIẾT
+      HỆ THỐNG ĐÈN GIAO THÔNG THÔNG MINH 4 HƯỚNG ĐIỀU KHIỂN THÍCH NGHI THEO
+             MẬT ĐỘ PHƯƠNG TIỆN BẰNG XỬ LÝ ẢNH TRÊN RASPBERRY PI 5
+================================================================================
+
+Tên đề tài: Nghiên cứu, thiết kế và chế tạo mô hình Đèn giao thông thông minh 4 hướng
+            kết hợp Xử lý ảnh nhận diện mật độ xe trên Raspberry Pi 5 và điều khiển chấp hành qua Arduino Uno R3.
+Đối tượng nghiên cứu: Giao lộ ngã tư đô thị (4 hướng: Bắc, Nam, Đông, Tây).
+Nền tảng phần cứng:
+  - Bộ xử lý trung tâm (Master): Raspberry Pi 5 Model B (RAM 8GB, SoC Broadcom BCM2712).
+  - Bộ vi điều khiển trung gian (Slave/Actuator): Arduino Uno R3 (Vi điều khiển ATmega328P, kết nối cổng USB COM/UART).
+Ngôn ngữ & Công nghệ: Python 3.13, C/C++ (Arduino), OpenCV 4.10, Ultralytics YOLOv8, Flask Framework,
+                      PySerial (UART 115200 bps), I2C Wire, SQLite3, HTML5/Vector SVG/CSS3.
+
+
+════════════════════════════════════════════════════════════════════════════════
+MỤC LỤC
+════════════════════════════════════════════════════════════════════════════════
+CHƯƠNG 1: TỔNG QUAN, MỤC TIÊU VÀ Ý NGHĨA KỸ THUẬT ĐỀ TÀI
+CHƯƠNG 2: KIẾN TRÚC HỆ THỐNG VÀ SƠ ĐỒ KHỐI PHÂN TẦNG
+CHƯƠNG 3: CHI TIẾT PHẦN CỨNG, TÍNH TOÁN MẠCH ĐIỆN VÀ SƠ ĐỒ CHÂN GPIO
+CHƯƠNG 4: MÁY TRẠNG THÁI HỮU HẠN (FSM) VÀ NGUYÊN LÝ CHUYỂN PHA AN TOÀN
+CHƯƠNG 5: GIẢI THUẬT ĐIỀU KHIỂN THÍCH NGHI (ADAPTIVE ALGORITHM) & CÔNG THỨC TOÁN HỌC
+CHƯƠNG 6: MODULE XỬ LÝ ẢNH & THỊ GIÁC MÁY TÍNH (COMPUTER VISION MODULE)
+CHƯƠNG 7: GIAO TIẾP MÀN HÌNH LCD 1602 I2C VÀ CƠ CHẾ DỰ PHÒNG MÔ PHỎNG
+CHƯƠNG 8: CƠ SỞ DỮ LIỆU SQLITE VÀ GIAO TIẾP REST API THỜI GIAN THỰC
+CHƯƠNG 9: HỆ THỐNG GIÁM SÁT TRỰC TRUYẾN (WEB DASHBOARD VECTOR SVG)
+CHƯƠNG 10: BỘ 10 CÂU HỎI PHẢN BIỆN THƯỜNG GẶP CỦA HỘI ĐỒNG VÀ ĐÁP ÁN TRẢ LỜI
+
+
+════════════════════════════════════════════════════════════════════════════════
+CHƯƠNG 1: TỔNG QUAN, MỤC TIÊU VÀ Ý NGHĨA KỸ THUẬT ĐỀ TÀI
+════════════════════════════════════════════════════════════════════════════════
+
+1.1. Đặt vấn đề:
+Tại các đô thị hiện đại, hệ thống đèn tín hiệu giao thông truyền thống sử dụng chu kỳ cố định
+(Fixed-Time Control). Phương pháp này bộc lộ nhược điểm nghiêm trọng:
+- Hướng không có hoặc rất ít xe vẫn phải bật đèn xanh đủ 30 giây gây lãng phí thời gian.
+- Hướng có hàng chục xe đang xếp hàng dài chờ đợi lại không được cấp thêm thời gian xanh.
+- Kết quả là gây ùn tắc cục bộ, tăng lượng khí thải độc hại (CO, CO2) do động cơ nổ cầm chừng,
+  và lãng phí nhiên liệu của người tham gia giao thông.
+
+1.2. Giải pháp đề tài:
+Xây dựng hệ thống đèn tín hiệu giao thông thông minh 4 hướng ứng dụng Thị giác máy tính (Computer Vision):
+- Thu nhận hình ảnh luồng giao thông 4 nhánh ngã tư qua Camera.
+- Sử dụng thuật toán Trừ nền thích nghi MOG2 kết hợp mô hình học sâu YOLOv8 để đếm số lượng xe thực tế.
+- Bộ điều khiển Trung tâm (Traffic Controller trên Pi 5) áp dụng thuật toán tối ưu động: Tự động phân bổ
+  thời gian đèn xanh tỷ lệ thuận với lượng xe của từng hướng, đồng thời tính toán thời gian chờ để chống bỏ đói.
+- Truyền lệnh điều khiển qua cổng nối tiếp USB Serial (COM / UART 115200 bps) xuống vi điều khiển trung gian
+  Arduino Uno R3 để trực tiếp xuất áp 5V nuôi 12 đèn LED vật lý (chân Digital 2→13) và màn hình LCD 1602 I2C (chân A4/A5).
+- Hiển thị song song lên màn hình LCD 1602 I2C tại tủ điều khiển phần cứng và Web Dashboard trực quan
+  cho phép giám sát, điều khiển từ xa qua mạng nội bộ/Internet.
+
+
+════════════════════════════════════════════════════════════════════════════════
+CHƯƠNG 2: KIẾN TRÚC HỆ THỐNG VÀ SƠ ĐỒ KHỐI PHÂN TẦNG (MASTER - SLAVE)
+════════════════════════════════════════════════════════════════════════════════
+
+Hệ thống được thiết kế theo kiến trúc 5 tầng phân tán Master-Slave (Raspberry Pi 5 + Arduino Uno R3):
+
+                  ┌──────────────────────────────────────────────┐
+                  │ TẦNG 5: GIAO DIỆN NGƯỜI DÙNG (PRESENTATION)  │
+                  │  - Web Dashboard SVG đô thị mô phỏng 4 hướng │
+                  │  - Trang Camera Stream HD nhận diện xe       │
+                  │  - Màn hình LCD 1602 ảo (Virtual Hardware)   │
+                  └──────────────────────┬───────────────────────┘
+                                         │ HTTP REST API / JSON
+                  ┌──────────────────────▼───────────────────────┐
+                  │   TẦNG 4: DỊCH VỤ MẠNG & WEB API (FLASK)     │
+                  │  - Endpoint /api/status (JSON 1000ms polling)│
+                  │  - Endpoint /api/mode, /api/manual (Control) │
+                  │  - MJPEG Video Streaming (/video_feed)       │
+                  └──────────────────────┬───────────────────────┘
+                                         │
+                  ┌──────────────────────▼───────────────────────┐
+                  │    TẦNG 3: BỘ ĐIỀU KHIỂN TRUNG TÂM (MASTER)  │
+                  │  - Máy trạng thái hữu hạn (FSM Controller)   │
+                  │  - Thuật toán thích nghi đa mục tiêu         │
+                  │  - Cơ sở dữ liệu SQLite (Log pha & Lưu lượng)│
+                  └───────────────┬──────────────────────────────┘
+                                  │
+          ┌───────────────────────┴───────────────────────────────┐
+          │                                                       │
+┌─────────▼────────────────────────┐    ┌─────────────────────────▼──────────────────┐
+│ TẦNG 2A: THỊ GIÁC MÁY TÍNH       │    │ TẦNG 2B: GIAO TIẾP SERIAL COM (HAL BRIDGE) │
+│ (COMPUTER VISION THREAD - PI 5)  │    │ (ARDUINO UNO SERIAL BRIDGE - PYSERIAL)     │
+│ - USB Camera (/dev/video0)       │    │ - Cổng COM USB (/dev/ttyACM0, 115200 bps)  │
+│ - MOG2 Background Subtraction    │    │ - Khung lệnh: LEDS:xxxxxxxxxxxx & LCD:a|b  │
+│ - Phân vùng 4 hướng (ROI Zones)  │    │ - Tự động dò cổng COM & kết nối lại nóng   │
+└──────────────────────────────────┘    └─────────────────────────┬──────────────────┘
+          │                                                       │ Cáp USB Serial (UART)
+          │                               ┌───────────────────────▼──────────────────┐
+          │                               │ TẦNG 1: VI ĐIỀU KHIỂN CHẤP HÀNH (SLAVE)  │
+          │                               │ - Bo mạch Arduino Uno R3 (ATmega328P)    │
+          │                               │ - 12 Đèn LED giao thông (Digital 2→13)   │
+          │                               │ - Màn hình LCD 16x2 I2C (SDA=A4, SCL=A5) │
+          └───────────────────────────────┴──────────────────────────────────────────┘
+
+
+════════════════════════════════════════════════════════════════════════════════
+CHƯƠNG 3: CHI TIẾT PHẦN CỨNG, TÍNH TOÁN MẠCH ĐIỆN VÀ SƠ ĐỒ CHÂN ARDUINO UNO R3
+════════════════════════════════════════════════════════════════════════════════
+
+3.1. Lý do sử dụng Arduino Uno R3 làm bo mạch trung gian kết nối với Raspberry Pi 5:
+Trên Raspberry Pi 5, các chân GPIO làm việc ở mức điện áp 3.3V và được quản lý bởi chip I/O RP1 rất nhạy cảm
+với hiện tượng quá dòng hoặc chạm chập điện áp 5V (dòng tối đa mỗi chân chỉ 16mA, tổng toàn bộ header <= 50mA).
+Do đó, việc bổ sung **Arduino Uno R3** làm vi điều khiển trung gian (Slave) kết nối qua cổng USB COM mang lại
+các ưu điểm vượt trội về mặt kỹ thuật công nghiệp:
+1. **Cách ly và bảo vệ an toàn tuyệt đối cho Raspberry Pi 5**: Pi 5 chỉ đóng vai trò máy tính nhúng xử lý ảnh AI,
+   Web Server và gửi lệnh chuỗi văn bản qua cổng USB Serial (`/dev/ttyACM0` hoặc `/dev/ttyUSB0`). Mọi tải dòng điện
+   của 12 đèn LED và màn hình LCD 5V đều do Arduino Uno gánh chịu.
+2. **Mức logic chuẩn TTL 5V và dòng tải khỏe**: Vi điều khiển ATmega328P hoạt động ở mức logic 5V (HIGH = 5V, LOW = 0V),
+   cho phép dòng ra mỗi chân I/O lên tới 20mA - 40mA, giúp 12 đèn LED sáng rực rỡ, đồng đều và giao tiếp trực tiếp
+   với màn hình LCD 1602 I2C ở mức 5V mà không sợ lệch áp logic.
+3. **Tận dụng tối ưu toàn bộ chân I/O của Arduino Uno R3**:
+   - Chân `0 (RX)` và `1 (TX)` dành riêng cho truyền thông USB Serial với Raspberry Pi 5.
+   - 12 chân Digital từ **`Pin 2` đến `Pin 13`** vừa khít hoàn hảo cho 12 bóng đèn LED (4 hướng × 3 màu).
+   - 2 chân Analog **`A4 (SDA)`** và **`A5 (SCL)`** đảm nhiệm bus I2C kết nối với màn hình LCD 1602.
+
+3.2. Tính toán điện trở hạn dòng cho 12 đèn LED trên Arduino Uno R3 (Logic 5V):
+Để đảm bảo các đèn LED hoạt động bền bỉ và an toàn cho cổng I/O của ATmega328P, điện trở hạn dòng được tính theo
+định luật Ohm:
+
+                        R = (V_UNO - V_LED) / I_LED
+
+Trong đó:
+- V_UNO = 5.0V (Điện áp xuất ra từ chân Digital của Arduino Uno R3 khi ở mức HIGH).
+- V_LED: Điện áp rơi trên diode phát quang (Forward Voltage):
+  + LED ĐỎ (Red):     V_f ≈ 2.0V
+  + LED VÀNG (Yellow): V_f ≈ 2.1V
+  + LED XANH (Green):  V_f ≈ 3.0V
+- I_LED: Dòng điện định mức mong muốn (chọn I_LED ≈ 10mA - 14mA để đèn sáng rõ trên sa bàn).
+
+Áp dụng công thức với điện trở tiêu chuẩn **220 Ohm** hoặc **330 Ohm**:
+- Với R = 220 Ohm:
+  + Dòng qua LED Đỏ:   I_red    = (5.0V - 2.0V) / 220Ω ≈ 13.6 mA (< 20mA định mức chân Uno -> Rất an toàn).
+  + Dòng qua LED Vàng: I_yellow = (5.0V - 2.1V) / 220Ω ≈ 13.2 mA.
+  + Dòng qua LED Xanh: I_green  = (5.0V - 3.0V) / 220Ω ≈ 9.1 mA.
+- Với R = 330 Ohm:
+  + Dòng qua LED Đỏ:   I_red    = (5.0V - 2.0V) / 330Ω ≈ 9.1 mA.
+  + Dòng qua LED Xanh: I_green  = (5.0V - 3.0V) / 330Ω ≈ 6.1 mA.
+
+-> KẾT LUẬN THIẾT KẾ: Sử dụng đồng bộ điện trở hạn dòng **220 Ohm** hoặc **330 Ohm** cho cả 12 chân LED.
+Tổng dòng tiêu thụ khi 1 hướng sáng Xanh và 3 hướng sáng Đỏ là khoảng 40mA - 50mA, nằm hoàn toàn trong ngưỡng
+an toàn của chip ATmega328P (tối đa 200mA toàn chip).
+
+3.3. Bảng phân bổ chân trên Arduino Uno R3 (Pinout 12 LED & LCD I2C):
+
++--------------------+-----------+--------------+-----------------------+-----------------------+
+| HƯỚNG GIAO THÔNG   | MÀU ĐÈN   | CHÂN UNO R3  | VỊ TRÍ TRÊN BO UNO    | TRẠNG THÁI KHỞI ĐỘNG  |
++--------------------+-----------+--------------+-----------------------+-----------------------+
+| BẮC (NORTH)        | ĐỎ (RED)  | Digital 2    | Dãy Digital (2→7)     | Bật (HIGH 5V - An toàn)|
+|                    | VÀNG (YEL)| Digital 3    | Dãy Digital (2→7)     | Tắt (LOW 0V)          |
+|                    | XANH (GRN)| Digital 4    | Dãy Digital (2→7)     | Tắt (LOW 0V)          |
++--------------------+-----------+--------------+-----------------------+-----------------------+
+| NAM (SOUTH)        | ĐỎ (RED)  | Digital 5    | Dãy Digital (2→7)     | Bật (HIGH 5V - An toàn)|
+|                    | VÀNG (YEL)| Digital 6    | Dãy Digital (2→7)     | Tắt (LOW 0V)          |
+|                    | XANH (GRN)| Digital 7    | Dãy Digital (2→7)     | Tắt (LOW 0V)          |
++--------------------+-----------+--------------+-----------------------+-----------------------+
+| ĐÔNG (EAST)        | ĐỎ (RED)  | Digital 8    | Dãy Digital (8→13)    | Tắt (Chuẩn bị mở Xanh)|
+|                    | VÀNG (YEL)| Digital 9    | Dãy Digital (8→13)    | Tắt (LOW 0V)          |
+|                    | XANH (GRN)| Digital 10   | Dãy Digital (8→13)    | Bật (Pha 1 khởi động) |
++--------------------+-----------+--------------+-----------------------+-----------------------+
+| TÂY (WEST)         | ĐỎ (RED)  | Digital 11   | Dãy Digital (8→13)    | Bật (HIGH 5V - An toàn)|
+|                    | VÀNG (YEL)| Digital 12   | Dãy Digital (8→13)    | Tắt (LOW 0V)          |
+|                    | XANH (GRN)| Digital 13   | Dãy Digital (8→13)    | Tắt (LOW 0V)          |
++--------------------+-----------+--------------+-----------------------+-----------------------+
+| LCD 1602 I2C       | SDA (Data)| Chân A4 (SDA)| Cụm Analog / I2C      | Giao tiếp I2C (0x27)  |
+| (Cắm trên Uno R3)  | SCL (Clk) | Chân A5 (SCL)| Cụm Analog / I2C      | Giao tiếp I2C (100kHz)|
+|                    | VCC (5V)  | Chân 5V      | Cụm Power Arduino Uno | Cấp nguồn 5V nuôi LCD |
+|                    | GND (0V)  | Chân GND     | Cụm Power Arduino Uno | Mass chung toàn mạch  |
++--------------------+-----------+--------------+-----------------------+-----------------------+
+
+3.4. Giao thức truyền thông nối tiếp UART/Serial giữa Raspberry Pi 5 và Arduino Uno R3:
+- Cổng vật lý: Cáp USB nối từ cổng USB của Raspberry Pi 5 sang Arduino Uno R3.
+- Cổng thiết bị trên Linux (Pi 5): Tự động nhận diện `/dev/ttyACM0` hoặc `/dev/ttyUSB0`.
+- Thông số truyền thông: Baudrate = **115200 bps**, 8 Data bits, No Parity, 1 Stop bit (8N1).
+- Cấu trúc bản tin ASCII kết thúc bằng ký tự xuống dòng `\n`:
+  1. `LEDS:b0b1b2b3b4b5b6b7b8b9b10b11\n`
+     Chuỗi 12 bit (`0` hoặc `1`) điều khiển đồng loạt 12 chân từ Pin 2 đến Pin 13 trong một gói tin duy nhất
+     (thời gian truyền chỉ ~1.5 ms, đảm bảo các đèn chuyển pha đồng thời tuyệt đối không bị trễ).
+     Ví dụ: `LEDS:001100100100\n` -> Bắc Xanh (Pin 4=1), Nam Đỏ (Pin 5=1), Đông Đỏ (Pin 8=1), Tây Đỏ (Pin 11=1).
+  2. `LCD:<Dòng 1 16 ký tự>|<Dòng 2 16 ký tự>\n`
+     Ví dụ: `LCD:Dong: XANH      |Con lai: 25s    \n` -> Arduino Uno lập tức xuất ra màn hình LCD 1602 I2C tại chân A4/A5.
+  3. `ALL_RED\n` và `ALL_OFF\n` -> Lệnh khẩn cấp bật toàn bộ đèn Đỏ hoặc tắt toàn bộ 12 đèn.
+  4. `PING\n` -> Kiểm tra kết nối sống (Heartbeat); Arduino Uno phản hồi `PONG LCD:1\n`.
+
+
+════════════════════════════════════════════════════════════════════════════════
+CHƯƠNG 4: MÁY TRẠNG THÁI HỮU HẠN (FSM) VÀ NGUYÊN LÝ CHUYỂN PHA AN TOÀN
+════════════════════════════════════════════════════════════════════════════════
+
+4.1. Định nghĩa các trạng thái FSM trong hệ thống:
+Bộ điều khiển `TrafficController` chạy trên một luồng nền độc lập (Background Thread), quản lý
+quá trình chuyển đổi trạng thái thông qua mô hình FSM gồm 4 trạng thái cốt lõi:
+1. `ALL_RED`: Trạng thái ban đầu khi khởi động hệ thống, bật đỏ toàn bộ 4 hướng để đảm bảo ngã tư
+   ở trạng thái tĩnh an toàn tuyệt đối.
+2. `GREEN_PHASE`: Hướng được kích hoạt bật đèn XANH, 3 hướng còn lại giữ đèn ĐỎ.
+3. `YELLOW_PHASE`: Hướng đang xanh chuyển sang đèn VÀNG trong 3 giây cảnh báo giảm tốc độ.
+4. `SAFETY_GAP` (Khoảng trống an toàn): Toàn bộ 4 hướng đồng loạt ĐỎ trong 1 giây trước khi mở hướng mới.
+
+4.2. Sơ đồ chuyển dịch trạng thái (State Transition Diagram):
+
+       Khởi động
+          │
+          ▼
+   ┌──────────────┐
+   │   ALL_RED    │ (12 chân: 4 Đỏ BẬT, 4 Vàng TẮT, 4 Xanh TẮT)
+   └──────┬───────┘
+          │ Sau 1 giây khởi tạo
+          ▼
+┌─────────────────────────┐
+│       GREEN_PHASE       │ <────────────────────────────────────────┐
+│  Hướng i: XANH (T_xanh) │                                          │
+│  3 Hướng khác: ĐỎ       │                                          │
+└─────────┬───────────────┘                                          │
+          │ Hết thời gian T_xanh (elapsed >= phase_duration)         │
+          ▼                                                          │
+┌─────────────────────────┐                                          │
+│      YELLOW_PHASE       │                                          │
+│  Hướng i: VÀNG (3 giây) │                                          │
+│  3 Hướng khác: ĐỎ       │                                          │
+└─────────┬───────────────┘                                          │
+          │ Hết 3 giây đèn vàng                                      │
+          ▼                                                          │
+┌─────────────────────────┐                                          │
+│       SAFETY_GAP        │                                          │
+│  Cả 4 Hướng: ĐỎ (1 giây)│ ─────────────────────────────────────────┘
+└─────────────────────────┘   Chọn Hướng tiếp theo (i = next_dir)
+                              qua Thuật toán Cố định hoặc Thích nghi
+
+4.3. Bảng chân lý trạng thái đèn giao thông (Truth Table):
+Giả sử Pha 1 đang mở cho Hướng ĐÔNG (EAST):
+
++------------+--------------------+-------------------+-------------------+-------------------+
+| TRẠNG THÁI | HƯỚNG ĐÔNG (EAST)  | HƯỚNG BẮC (NORTH) | HƯỚNG TÂY (WEST)  | HƯỚNG NAM (SOUTH) |
+|            | Đỏ  Vàng  Xanh     | Đỏ  Vàng  Xanh    | Đỏ  Vàng  Xanh    | Đỏ  Vàng  Xanh    |
++------------+--------------------+-------------------+-------------------+-------------------+
+| XANH (25s) |  0    0     1      |  1    0     0     |  1    0     0     |  1    0     0     |
+| VÀNG (3s)  |  0    1     0      |  1    0     0     |  1    0     0     |  1    0     0     |
+| SAFETY(1s) |  1    0     0      |  1    0     0     |  1    0     0     |  1    0     0     |
++------------+--------------------+-------------------+-------------------+-------------------+
+Ghi chú: 1 = Đèn BẬT (HIGH 3.3V); 0 = Đèn TẮT (LOW 0V).
+
+
+════════════════════════════════════════════════════════════════════════════════
+CHƯƠNG 5: GIẢI THUẬT ĐIỀU KHIỂN THÍCH NGHI (ADAPTIVE ALGORITHM) & CÔNG THỨC TOÁN HỌC
+════════════════════════════════════════════════════════════════════════════════
+
+Thuật toán thích nghi gồm 2 bài toán quyết định chính:
+(1) Lựa chọn hướng nào sẽ được quyền đi tiếp theo (Direction Selection).
+(2) Cấp phát bao nhiêu giây đèn xanh cho hướng đó (Duration Allocation).
+
+5.1. Thuật toán Lựa chọn hướng tiếp theo (Direction Priority Selection):
+Tại thời điểm kết thúc pha `SAFETY_GAP`, hệ thống duyệt qua 4 hướng trong tập:
+PHASE_ORDER = ['NORTH', 'EAST', 'SOUTH', 'WEST']
+
+Để đảm bảo tính công bằng và tránh lặp lại, hướng vừa mới đi xong sẽ không được chọn ngay
+(loại trừ nếu có nhiều hơn 1 hướng).
+
+Hệ số điểm ưu tiên (Priority Score) của mỗi hướng d được tính theo công thức:
+
+   Score(d) = W_count * (Count(d) / Max_Count) + W_wait * (Wait(d) / Max_Wait)
+
+Trong đó:
+- `Count(d)`: Số lượng phương tiện hiện tại phát hiện ở hướng d.
+- `Max_Count`: Giá trị lớn nhất của số xe trong cả 4 hướng tại thời điểm xét:
+               Max_Count = max(Count(Bắc), Count(Nam), Count(Đông), Count(Tây), 1)
+- `Wait(d)`: Thời gian (tính bằng giây) mà hướng d đã phải dừng chờ đèn đỏ kể từ lần xanh gần nhất.
+- `Max_Wait`: Thời gian chờ lâu nhất trong các hướng:
+              Max_Wait = max(Wait(Bắc), Wait(Nam), Wait(Đông), Wait(Tây), 1)
+- `W_count`: Trọng số ưu tiên lưu lượng xe = 0.6 (Chiếm 60% quyết định).
+- `W_wait`: Trọng số ưu tiên thời gian chờ = 0.4 (Chiếm 40% quyết định).
+
+Cơ chế Chống bỏ đói (Starvation Protection):
+Nếu một hướng d có thời gian chờ Wait(d) >= MAX_WAIT (Ngưỡng 120 giây):
+   Score(d) = 999 (Gán điểm tuyệt đối)
+-> Hướng này sẽ được cưỡng bức mở đèn xanh ngay lập tức, ngăn ngừa triệt để tình trạng một nhánh
+   đường ít xe bị đèn đỏ vô tận do các nhánh khác liên tục có xe.
+
+5.2. Thuật toán Cấp phát thời gian xanh động (Dynamic Green Time Allocation):
+Sau khi hướng `best_dir` được chọn, thời gian đèn xanh được tính dựa trên ngưỡng mật độ phân cấp:
+
+- Phân cấp mật độ (Density Level):
+  + LOW (Mật độ thấp):       Số xe <= 2 xe  -> Cấp thời gian xanh: T_green = 15 giây.
+  + MEDIUM (Mật độ vừa):     3 <= Số xe <= 5 xe -> Cấp thời gian xanh: T_green = 30 giây.
+  + HIGH (Mật độ cao/Kẹt):   Số xe > 5 xe   -> Cấp thời gian xanh: T_green = 50 giây.
+
+- Ràng buộc an toàn biên (Clamping Boundary):
+  Thời gian xanh cuối cùng bắt buộc phải nằm trong giới hạn cho phép:
+  T_final = max(GREEN_MIN, min(GREEN_MAX, T_green))
+  Với GREEN_MIN = 10 giây và GREEN_MAX = 60 giây.
+
+5.3. Ví dụ tính toán số học cụ thể:
+Xét ngã tư tại thời điểm t:
+- Hướng vừa đi xong: Hướng ĐÔNG (bị loại trừ ở lượt chọn này).
+- Dữ liệu cảm biến:
+  + BẮC: Count = 8 xe,   Wait = 35 giây.
+  + NAM: Count = 1 xe,   Wait = 70 giây.
+  + TÂY: Count = 0 xe,   Wait = 20 giây.
+
+Tính toán:
+- Max_Count = max(8, 1, 0, 1) = 8 xe.
+- Max_Wait  = max(35, 70, 20, 1) = 70 giây.
+
+Tính điểm Score từng hướng:
+- BẮC: Score = 0.6 * (8 / 8) + 0.4 * (35 / 70) = 0.6 * 1.0 + 0.4 * 0.5 = 0.6 + 0.2 = 0.80.
+- NAM: Score = 0.6 * (1 / 8) + 0.4 * (70 / 70) = 0.6 * 0.125 + 0.4 * 1.0 = 0.075 + 0.4 = 0.475.
+- TÂY: Score = 0.6 * (0 / 8) + 0.4 * (20 / 70) = 0.0 + 0.4 * 0.285 = 0.114.
+
+-> KẾT QUẢ: Hướng BẮC có Score = 0.80 lớn nhất -> Hướng BẮC ĐƯỢC CHỌN.
+Tính thời gian xanh cho BẮC:
+- Số xe = 8 xe (> 5 xe) -> Thuộc mức HIGH.
+- Thời gian xanh được cấp = 50 giây.
+
+
+════════════════════════════════════════════════════════════════════════════════
+CHƯƠNG 6: MODULE XỬ LÝ ẢNH & THỊ GIÁC MÁY TÍNH (COMPUTER VISION MODULE)
+════════════════════════════════════════════════════════════════════════════════
+
+Module `VisionModule` vận hành trên một Thread riêng biệt với chu kỳ xử lý độc lập,
+không làm nghẽn vòng lặp điều khiển đèn LED.
+
+6.1. Định cấu hình phân vùng quan sát (Regions of Interest - ROI):
+Khung hình Camera 640x480 pixel được chuẩn hóa tọa độ (Normalized Coordinates [0.0 -> 1.0]):
+- Vùng BẮC (NORTH): [x1=0.25, y1=0.0,  x2=0.75, y2=0.4]  (Dải phía trên khung hình)
+- Vùng NAM (SOUTH): [x1=0.25, y1=0.6,  x2=0.75, y2=1.0]  (Dải phía dưới khung hình)
+- Vùng ĐÔNG (EAST): [x1=0.6,  y1=0.25, x2=1.0,  y2=0.75] (Dải bên phải khung hình)
+- Vùng TÂY (WEST):  [x1=0.0,  y1=0.25, x2=0.4,  y2=0.75] (Dải bên trái khung hình)
+
+6.2. Cơ chế nhận diện kép (Hybrid Vision Architecture):
+Hệ thống tích hợp 2 lớp xử lý linh hoạt:
+
+Lớp 1: Deep Learning YOLOv8 (Mặc định khi có mô hình `models/yolov8n.pt`):
+- Sử dụng mô hình mạng nơ-ron tích chập YOLOv8 Nano tối ưu cho CPU ARM64 của Pi 5.
+- Bộ lọc lớp đối tượng phương tiện giao thông chuẩn COCO Dataset:
+  + Class 2: 'car' (Xe con)
+  + Class 3: 'motorcycle' (Xe máy)
+  + Class 5: 'bus' (Xe buýt)
+  + Class 7: 'truck' (Xe tải)
+- Ngưỡng tin cậy (Confidence Threshold): >= 0.45 (Loại bỏ nhận diện sai).
+- Thuật toán Non-Maximum Suppression (NMS IOU): 0.45 (Loại bỏ các hộp nhận diện trùng lặp).
+
+Lớp 2: Thuật toán Trừ nền thích nghi MOG2 (Fallback tự động khi chạy nhẹ hoặc camera mô hình):
+- Hàm khởi tạo: `cv2.createBackgroundSubtractorMOG2(history=300, varThreshold=50, detectShadows=False)`
+- Nguyên lý: Xây dựng hàm mật độ xác suất dạng hỗn hợp nhiều phân bố Gauss (Gaussian Mixture Model)
+  cho từng điểm ảnh. Những pixel thay đổi liên tục theo thời gian được coi là xe chuyển động.
+- Lọc nhiễu hình thái học:
+  Kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (5, 5))
+  Áp dụng `cv2.morphologyEx(fg_mask, cv2.MORPH_OPEN, kernel)` để xóa các đốm trắng li ti do nhiễu hạt.
+  Áp dụng `cv2.morphologyEx(fg_mask, cv2.MORPH_CLOSE, kernel)` để hàn liền khối thân xe.
+- Đếm Contours: Chỉ đếm các đường bao có diện tích `cv2.contourArea(c) > 500 pixel`.
+
+6.3. Bộ đệm làm mịn dữ liệu chống rung lắc (Smoothing Filter Buffer):
+Để loại bỏ hiện tượng nhảy số xe tức thời (ví dụ: xe vừa chạy khuất góc hoặc người đi bộ cắt ngang),
+mỗi hướng được trang bị một hàng đợi trượt `deque(maxlen=5)`.
+Số xe báo cáo về TrafficController là giá trị trung bình trượt (Moving Average) trong 5 khung hình
+gần nhất, giúp thuật toán điều khiển đèn vận hành cực kỳ ổn định, không bị chập chờn.
+
+
+════════════════════════════════════════════════════════════════════════════════
+CHƯƠNG 7: GIAO TIẾP MÀN HÌNH LCD 1602 I2C TRÊN ARDUINO UNO R3 VÀ CƠ CHẾ MÔ PHỎNG
+════════════════════════════════════════════════════════════════════════════════
+
+7.1. Giao thức I2C (Inter-Integrated Circuit) trên Arduino Uno R3:
+Màn hình LCD 16 ký tự x 2 dòng sử dụng chip điều khiển chuẩn Hitachi HD44780, được ghép nối
+với bo mạch mở rộng I2C PCF8574 và đấu trực tiếp vào cổng I2C phần cứng của Arduino Uno R3:
+- Chuẩn giao tiếp: Bus I2C phần cứng của ATmega328P (2 dây: **SDA = Chân A4**, **SCL = Chân A5**).
+- Điện áp hoạt động: 5V chuẩn TTL tương thích hoàn toàn với PCF8574 mà không cần mạch chuyển mức logic.
+- Tốc độ truyền chuẩn: 100 kHz (Standard-mode).
+- Địa chỉ phần cứng thông dụng: 0x27 hoặc 0x3F (Firmware Arduino Uno tự động quét cả hai địa chỉ).
+
+7.2. Định dạng xuất ký tự từ Raspberry Pi xuống Arduino Uno:
+- Raspberry Pi đóng gói nội dung 2 dòng vào lệnh `LCD:<dòng 1>|<dòng 2>\n` gửi qua cổng COM.
+- Dòng 1 (Line 1): Hiển thị Hướng đang mở và Màu đèn hiện tại (Ví dụ: `Dong: XANH      `).
+- Dòng 2 (Line 2): Hiển thị Thời gian đếm ngược còn lại (Ví dụ: `Con lai: 24s    `).
+Khi đổi chế độ, LCD hiển thị thông báo tức thời:
+- Dòng 1: `Che do:         `
+- Dòng 2: `Thong minh AI   ` hoặc `Co dinh (30s)   ` hoặc `An toan (DO)    `.
+
+7.3. Cơ chế Chuyển đổi mô phỏng tự động (Graceful Simulation Fallback):
+Khi khởi động, `ArduinoSerialBridge` thực hiện quét các cổng USB Serial (`/dev/ttyACM0`, `/dev/ttyUSB0`).
+Nếu người dùng chưa cắm cáp USB Arduino Uno hoặc chưa cắm màn hình phần cứng:
+- Hệ thống KHÔNG BỊ CRASH, mà tự động ghi nhận chế độ mô phỏng.
+- Nội dung văn bản của 2 dòng màn hình vẫn được tính toán và lưu trong bộ nhớ đệm `get_text()`.
+- Giao diện Web Dashboard lập tức đọc bộ đệm này và render lên **Bo mạch LCD ảo 1602**
+  với hiệu ứng ma trận ký tự và đèn nền xanh y hệt màn hình thật, giúp người vận hành quan sát
+  đầy đủ dữ liệu mà không bị gián đoạn.
+
+
+════════════════════════════════════════════════════════════════════════════════
+CHƯƠNG 8: CƠ SỞ DỮ LIỆU SQLITE VÀ GIAO TIẾP REST API THỜI GIAN THỰC
+════════════════════════════════════════════════════════════════════════════════
+
+8.1. Cơ sở dữ liệu SQLite (`data/traffic.db`):
+Hệ thống sử dụng SQLite nhúng nhẹ để ghi nhận toàn bộ hoạt động lịch sử phục vụ thống kê báo cáo:
+- Bảng `phase_logs`: Ghi nhận nhật ký mỗi lần ngã tư đổi pha:
+  `id (INTEGER PRIMARY KEY), timestamp (DATETIME), direction (TEXT), color (TEXT), duration (REAL), mode (TEXT)`
+- Bảng `system_events`: Ghi nhận các sự kiện hệ thống (Khởi động, chuyển chế độ, lỗi phần cứng).
+- Bảng `traffic_stats`: Lưu trữ mật độ xe theo từng khung giờ trong ngày để phân tích lưu lượng.
+
+8.2. Danh mục các REST API Endpoint (Web Services):
+1. `GET /api/status`: Trả về toàn bộ trạng thái thời gian thực của ngã tư (đèn, đếm ngược, xe, wait time).
+2. `POST /api/mode`: Chuyển chế độ hoạt động (Body JSON: `{"mode": "FIXED" | "ADAPTIVE" | "SAFE"}`).
+3. `POST /api/sim/adjust`: Tăng/giảm số xe giả lập ở 4 hướng để kiểm thử nhanh thuật toán thích nghi.
+4. `POST /api/manual/light`: Bật/tắt một bóng LED cụ thể để kiểm tra dây nối phần cứng.
+5. `POST /api/manual/all`: Bật toàn bộ 12 đèn hoặc Tắt toàn bộ để test nguồn điện.
+6. `POST /api/lcd/reconnect`: Quét lại bus I2C và thử kết nối lại màn hình phần cứng.
+7. `GET /video_feed`: Luồng phát video trực tiếp MJPEG từ camera USB có gắn khung nhận diện xe.
+
+
+════════════════════════════════════════════════════════════════════════════════
+CHƯƠNG 9: HỆ THỐNG GIÁM SÁT TRỰC TRUYẾN (WEB DASHBOARD VECTOR SVG)
+════════════════════════════════════════════════════════════════════════════════
+
+Giao diện Web Dashboard được xây dựng hiện đại, trực quan, hỗ trợ đầy đủ thiết bị di động và máy tính:
+1. Mô hình ngã tư Vector SVG Siêu thực (600x600 px):
+   - Không dùng ảnh tĩnh hay flexbox đơn sơ; toàn bộ lòng đường, vạch sơn phản quang, vỉa hè
+     đá hoa cương và công viên cây xanh được vẽ bằng chuẩn đồ họa Vector SVG sắc nét.
+   - 4 Cột đèn tín hiệu giao thông 3D có nón che visor và bộ lọc phát sáng quầng sáng neon rực rỡ
+     (Glow Filters: feGaussianBlur stdDeviation=6) đồng bộ 100% với 12 chân LED thật trên Pi 5.
+   - Các xe ô tô trên làn đường có đèn pha phát chùm sáng quét trên mặt đường nhựa và tự động
+     di chuyển qua ngã tư khi có tín hiệu đèn xanh.
+2. Thiết kế Chống Cache tuyệt đối:
+   - Toàn bộ khung định kiểu CSS lõi được nhúng trực tiếp vào trang web và đánh chỉ mục phiên bản `v=5.0`,
+     đảm bảo trình duyệt luôn hiển thị lung linh, không bao giờ bị vỡ bố cục khi tải lại.
+
+
+════════════════════════════════════════════════════════════════════════════════
+CHƯƠNG 10: BỘ 10 CÂU HỎI PHẢN BIỆN THƯỜNG GẶP CỦA HỘI ĐỒNG VÀ ĐÁP ÁN TRẢ LỜI
+════════════════════════════════════════════════════════════════════════════════
+
+Dưới đây là 10 câu hỏi cốt lõi mà các thầy cô trong Hội đồng phản biện đề tài thường đặt ra,
+cùng câu trả lời chuẩn xác, tự tin đạt điểm xuất sắc:
+
+CÂU HỎI 1: Tại sao hệ thống lại cần pha "Toàn đỏ 1 giây" (Safety Gap / All-Red Clearance)?
+TRẢ LỜI:
+- Pha "Toàn đỏ" là quy chuẩn kỹ thuật an toàn bắt buộc trong kỹ thuật giao thông đô thị thế giới.
+- Khi một hướng vừa hết 3 giây đèn vàng, vẫn có những phương tiện đã vượt qua vạch dừng và đang nằm
+  ở giữa giao lộ. Nếu mở ngay đèn xanh cho hướng cắt ngang thì các xe ở hướng mới sẽ phóng vào
+  ngã tư và xảy ra xung đột va chạm trực diện.
+- Khoảng trống 1 giây toàn đỏ giúp ngã tư hoàn toàn trống trải (Clearance Interval) trước khi luồng
+  giao thông mới bắt đầu xuất phát.
+
+CÂU HỎI 2: Thuật toán giải quyết thế nào nếu một hướng liên tục có rất ít xe hoặc không có xe?
+TRẢ LỜI:
+- Hệ thống áp dụng cơ chế trọng số kép: Điểm ưu tiên gồm 60% mật độ xe và 40% thời gian chờ đợi.
+- Nếu một hướng vắng xe, thời gian chờ của nó sẽ tăng dần theo từng giây. Khi thời gian chờ vượt ngưỡng
+  MAX_WAIT (120 giây), cơ chế Chống bỏ đói (Starvation Protection) sẽ gán điểm ưu tiên tuyệt đối (Score = 999)
+  để ép hệ thống phải mở đèn xanh cho hướng đó.
+- Tuy nhiên, vì hướng đó ít xe (thuộc mức LOW), hệ thống chỉ cấp thời gian xanh tối thiểu 15 giây
+  rồi nhanh chóng chuyển sang hướng khác, vừa đảm bảo công bằng vừa không làm lãng phí lưu lượng ngã tư.
+
+CÂU HỎI 3: Tại sao đề tài lại kết hợp cả Raspberry Pi 5 và Arduino Uno R3 qua cổng COM mà không dùng độc lập 1 bo mạch?
+TRẢ LỜI:
+- Đây là kiến trúc phân tầng **Master - Slave** tiêu chuẩn trong các hệ thống điều khiển công nghiệp hiện đại:
+  + **Raspberry Pi 5 (Master - Bộ não tính toán)**: Trang bị CPU 4 nhân Cortex-A76 2.4GHz, RAM 8GB, chạy Linux đa nhiệm.
+    Pi 5 đảm nhiệm các tác vụ nặng mà vi điều khiển 8-bit không thể làm được: Giải mã luồng video camera 30 FPS,
+    chạy mô hình học sâu YOLOv8 / trừ nền MOG2, quản trị cơ sở dữ liệu SQLite và làm Web Server Flask phát trực tiếp.
+  + **Arduino Uno R3 (Slave - Cơ cấu chấp hành I/O)**: Chạy ở mức điện áp chuẩn 5V TTL với dòng tải I/O khỏe
+    (20mA - 40mA/chân). Việc giao cho Arduino Uno trực tiếp lái 12 đèn LED (Pin 2→13) và màn hình LCD 1602 I2C 5V (Chân A4/A5)
+    giúp **cách ly và bảo vệ tuyệt đối chip RP1 (3.3V)** đắt tiền trên Raspberry Pi 5 khỏi nguy cơ quá dòng, sụt áp hay chạm chập dây điện.
+
+CÂU HỎI 4: Nếu Camera bị che khuất, bị hỏng hoặc cáp USB Arduino Uno bị lỏng thì hệ thống xử lý ra sao?
+TRẢ LỜI:
+- Hệ thống có cơ chế Giám sát lỗi (Fault Tolerance) ở cả 2 tầng:
+  + Nếu Camera mất kết nối, bộ điều khiển lập tức chuyển từ THÍCH NGHI (ADAPTIVE) về CỐ ĐỊNH (FIXED 30s).
+  + Khi khởi động hoặc khi mất kết nối Serial với Pi, firmware trên Arduino Uno R3 tự động đưa ngã tư về
+    trạng thái an toàn **ALL RED** (4 hướng đều Đỏ), và trên Web Dashboard có nút quét tự động kết nối lại cổng COM nóng (`/dev/ttyACM0`, `/dev/ttyUSB0`) mà không cần khởi động lại chương trình.
+
+CÂU HỎI 5: Việc truyền lệnh qua cổng COM (Serial) giữa Pi 5 và Arduino Uno có gây độ trễ khi đổi màu đèn không?
+TRẢ LỜI:
+- Hoàn toàn không có độ trễ mắt thường nhận thấy được. Hệ thống cấu hình tốc độ truyền UART ở mức cao **115200 bps**.
+- Thay vì gửi rời rạc từng lệnh bật/tắt cho từng bóng đèn, Raspberry Pi đóng gói trạng thái của toàn bộ 12 bóng LED
+  vào một khung truyền duy nhất dài 18 byte: `LEDS:100100001100\n`.
+- Với tốc độ 115200 bit/s (tương đương ~11.520 byte/giây), gói tin 18 byte chỉ mất đúng **1.56 mili-giây (0.0015 giây)**
+  để truyền từ Pi 5 xuống Arduino Uno và kích hoạt đồng loạt 12 chân Digital 2→13.
+
+CÂU HỎI 6: Tại sao trên Arduino Uno R3 có thể vừa điều khiển 12 đèn LED vừa điều khiển màn hình LCD mà không bị thiếu chân?
+TRẢ LỜI:
+- Nhờ thiết kế phân bổ chân thông minh:
+  + 2 chân `0 (RX)` và `1 (TX)` được giữ nguyên cho giao tiếp USB Serial với Raspberry Pi.
+  + 12 chân Digital từ **`Pin 2` đến `Pin 13`** vừa đủ cho 12 đèn LED (4 hướng × 3 màu).
+  + Màn hình LCD 1602 sử dụng module chuyển tiếp I2C PCF8574 nên chỉ cần 2 dây tín hiệu cắm vào chân **`A4 (SDA)`** và **`A5 (SCL)`**
+    thuộc dãy Analog, hoàn toàn tách biệt với 12 chân Digital của đèn LED. Thậm chí trên mạch vẫn còn dư 4 chân `A0 → A3` để mở rộng cảm biến.
+
+CÂU HỎI 7: Cách tính toán điện trở hạn dòng cho LED trên Arduino Uno R3 đã đảm bảo an toàn chưa?
+TRẢ LỜI:
+- Rất an toàn. Điện áp xuất từ chân Digital (Pin 2→13) của Arduino Uno R3 là 5.0V. LED đỏ có điện áp rơi khoảng 2.0V, LED xanh lá khoảng 3.0V.
+- Với điện trở hạn dòng 220 Ohm (hoặc 330 Ohm), dòng điện chạy qua mỗi nhánh LED là:
+  `I_red = (5.0 - 2.0) / 220 ≈ 13.6 mA` và `I_green = (5.0 - 3.0) / 220 ≈ 9.1 mA`.
+- Dòng điện này nằm dưới ngưỡng an toàn liên tục của mỗi chân ATmega328P (20 mA, cực đại 40 mA). Khi ngã tư hoạt động
+  (1 đèn Xanh và 3 đèn Đỏ sáng cùng lúc), tổng dòng toàn bộ 12 chân chỉ khoảng 45 mA (< 200 mA giới hạn tổng của chip ATmega328P).
+
+CÂU HỎI 8: Dữ liệu đếm xe bằng Background Subtraction MOG2 khác gì so với YOLOv8?
+TRẢ LỜI:
+- MOG2 là thuật toán trừ nền truyền thống dựa trên phân bố Gauss, nhận diện chuyển động dựa vào sự thay đổi pixel.
+  Ưu điểm là tốc độ tính toán cực nhanh, tốn rất ít tài nguyên phần cứng, thích hợp cho các bộ vi xử lý nhúng.
+- YOLOv8 là mô hình học sâu (Deep Learning) nhận diện đối tượng dựa trên đặc trưng hình học và ngữ nghĩa của xe.
+  Ưu điểm là phân biệt chính xác đâu là ô tô, xe máy, xe tải ngay cả khi xe đang dừng đỗ không chuyển động.
+- Hệ thống thiết kế theo cơ chế Hybrid: Tích hợp sẵn bộ khung YOLOv8 và có bộ lọc MOG2 dự phòng,
+  giúp hệ thống có thể chạy mượt mà trong mọi điều kiện cấu hình phần cứng.
+
+CÂU HỎI 9: Trong trường hợp khẩn cấp (Xe cứu hỏa, cấp cứu), người điều khiển can thiệp thế nào?
+TRẢ LỜI:
+- Người trực ban tại trung tâm điều hành hoặc CSGT có thể truy cập Web Dashboard trên điện thoại/máy tính
+  và kích hoạt nút "An Toàn / Khẩn Cấp" (SAFE MODE).
+- Hệ thống sẽ ngắt chu kỳ thích nghi và ngay lập tức bật đèn ĐỎ toàn bộ 4 hướng ngã tư để chặn các dòng xe,
+  giải phóng khoảng trống cho xe ưu tiên đi qua an toàn.
+- Sau khi xe ưu tiên đi qua, chỉ cần nhấn chọn lại "Thông minh AI" là hệ thống tự động khởi động lại chu kỳ xanh.
+
+CÂU HỎI 10: Hướng phát triển và mở rộng thực tế của đề tài trong tương lai là gì?
+TRẢ LỜI:
+- Thứ nhất: Tích hợp thêm Nút bấm xin qua đường dành cho người đi bộ (Pedestrian Push Button),
+  hệ thống sẽ chèn pha nhường đường cho người đi bộ khi có nhu cầu.
+- Thứ hai: Kết nối mạng diện rộng qua chuẩn giao thức MQTT để đồng bộ hóa làn sóng xanh (Green Wave)
+  giữa nhiều ngã tư liên tiếp trên cùng một trục đường đô thị.
+- Thứ ba: Ứng dụng mô hình AI nhận diện biển số xe (ALPR) để tự động phát hiện và ghi nhận các phương tiện
+  vượt đèn đỏ gửi về cơ sở dữ liệu xử phạt vi phạm giao thông.
+
+================================================================================
+                               HẾT THUYẾT MINH
+================================================================================

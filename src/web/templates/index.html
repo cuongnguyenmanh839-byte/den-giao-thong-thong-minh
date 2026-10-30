@@ -1,0 +1,1601 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Smart Traffic Command Center – Raspberry Pi 5 & Arduino Uno R3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+/* ============================================================================
+   SMART CITY TRAFFIC OPERATIONS CENTER (ITS-SCADA PRO UI v6.0)
+   Designed for Raspberry Pi 5 (Master AI) + Arduino Uno R3 (COM /dev/ttyUSB0)
+   ============================================================================ */
+:root {
+  --bg-deep: #04070f;
+  --bg-main: #070c18;
+  --bg-card: rgba(13, 21, 38, 0.88);
+  --bg-card-solid: #0d1526;
+  --bg-inner: rgba(20, 31, 56, 0.75);
+  --bg-inner-hover: rgba(28, 43, 75, 0.9);
+
+  --border-subtle: rgba(148, 163, 184, 0.12);
+  --border-light: rgba(56, 189, 248, 0.28);
+  --border-glow: rgba(56, 189, 248, 0.5);
+
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+
+  --red: #ef4444;
+  --red-glow: rgba(239, 68, 68, 0.45);
+  --yellow: #f59e0b;
+  --yellow-glow: rgba(245, 158, 11, 0.45);
+  --green: #10b981;
+  --green-glow: rgba(16, 185, 129, 0.45);
+  --cyan: #06b6d4;
+  --blue: #3b82f6;
+  --indigo: #6366f1;
+
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  background-color: var(--bg-deep);
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(37, 99, 235, 0.16) 0%, transparent 45%),
+    radial-gradient(circle at 85% 0%, rgba(6, 182, 212, 0.14) 0%, transparent 45%),
+    radial-gradient(circle at 50% 100%, rgba(16, 185, 129, 0.08) 0%, transparent 50%),
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  min-height: 100vh;
+  line-height: 1.5;
+  overflow-x: hidden;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: #060a12; }
+::-webkit-scrollbar-thumb { background: #1e293b; border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: #38bdf8; }
+
+.app {
+  max-width: 1780px;
+  margin: 0 auto;
+  padding: 14px 20px 28px;
+}
+
+/* ─── TOP COMMAND HEADER ─────────────────────────────────────────────────── */
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(9, 14, 28, 0.95));
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: var(--radius-xl);
+  margin-bottom: 16px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+  position: relative;
+  overflow: hidden;
+}
+.header::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, #3b82f6, #06b6d4, #10b981, transparent);
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.logo-box {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, #1e293b 0%, #090d16 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px;
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.2), inset 0 1px 2px rgba(255,255,255,0.15);
+  position: relative;
+}
+.logo-box::after {
+  content: '';
+  position: absolute;
+  inset: -3px;
+  border-radius: 16px;
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  pointer-events: none;
+}
+.title-badge-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.sys-tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.65rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  color: #38bdf8;
+}
+.header-title {
+  font-size: 1.3rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  background: linear-gradient(90deg, #ffffff 0%, #bae6fd 60%, #38bdf8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+.header-sub {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin-top: 2px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.header-sub code {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.72rem;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.12);
+  padding: 1px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(16, 185, 129, 0.25);
+}
+
+.header-right { display: flex; align-items: center; gap: 14px; }
+.header-nav {
+  display: flex; align-items: center; gap: 6px;
+  background: #060a14; padding: 5px; border-radius: 99px;
+  border: 1px solid var(--border-subtle);
+}
+.nav-item {
+  text-decoration: none; font-size: 0.78rem; font-weight: 700;
+  padding: 7px 16px; border-radius: 99px; color: var(--text-secondary);
+  transition: all 0.2s ease; display: flex; align-items: center; gap: 6px;
+}
+.nav-item:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+.nav-item.active {
+  background: linear-gradient(135deg, #2563eb, #0284c7);
+  color: #fff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
+}
+.status-pill {
+  display: flex; align-items: center; gap: 8px; padding: 7px 15px; border-radius: 99px;
+  font-size: 0.78rem; font-weight: 700;
+  background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  color: #34d399;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.15);
+}
+.pulse-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #10b981;
+  box-shadow: 0 0 8px #10b981; animation: pulseDot 1.6s infinite ease-in-out;
+}
+@keyframes pulseDot {
+  0%, 100% { transform: scale(0.9); opacity: 0.8; }
+  50% { transform: scale(1.25); opacity: 1; box-shadow: 0 0 14px #10b981; }
+}
+.clock-box {
+  font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; font-weight: 800;
+  color: #38bdf8; padding: 7px 14px; background: #060a14;
+  border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px;
+  letter-spacing: 0.06em;
+  box-shadow: inset 0 2px 6px rgba(0,0,0,0.6);
+}
+
+/* ─── TOP TELEMETRY KPI STRIP ────────────────────────────────────────────── */
+.kpi-strip {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-bottom: 18px;
+}
+.kpi-card {
+  background: linear-gradient(145deg, rgba(15, 23, 42, 0.9), rgba(10, 16, 30, 0.92));
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.4);
+  position: relative;
+  overflow: hidden;
+}
+.kpi-card::after {
+  content: '';
+  position: absolute;
+  bottom: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, #3b82f6, transparent);
+  opacity: 0.6;
+}
+.kpi-card.kpi-green::after { background: linear-gradient(90deg, #10b981, transparent); }
+.kpi-card.kpi-cyan::after  { background: linear-gradient(90deg, #06b6d4, transparent); }
+.kpi-card.kpi-amber::after { background: linear-gradient(90deg, #f59e0b, transparent); }
+
+.kpi-info { display: flex; flex-direction: column; gap: 2px; }
+.kpi-label {
+  font-size: 0.68rem;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--text-muted);
+}
+.kpi-val {
+  font-size: 1.15rem;
+  font-weight: 800;
+  color: #fff;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.kpi-val.mono { font-family: 'JetBrains Mono', monospace; font-size: 1.35rem; color: #38bdf8; }
+.kpi-sub { font-size: 0.72rem; color: var(--text-secondary); font-weight: 600; }
+.kpi-icon {
+  width: 44px; height: 44px;
+  border-radius: 12px;
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 1.35rem;
+}
+
+/* ─── 3-COLUMN MAIN GRID ─────────────────────────────────────────────────── */
+.grid {
+  display: grid;
+  grid-template-columns: 365px 1fr 375px;
+  gap: 18px;
+  align-items: start;
+}
+.col-left, .col-mid, .col-right {
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+/* ─── UNIVERSAL CARD STYLING ─────────────────────────────────────────────── */
+.card {
+  background: var(--bg-card);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-lg);
+  padding: 18px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  transition: border-color 0.25s ease, box-shadow 0.25s ease;
+}
+.card:hover {
+  border-color: rgba(56, 189, 248, 0.28);
+}
+.card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+  padding-bottom: 11px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.card-title-group { display: flex; align-items: center; gap: 9px; }
+.card-icon {
+  width: 28px; height: 28px;
+  border-radius: 7px;
+  background: rgba(56, 189, 248, 0.12);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 0.95rem;
+}
+.card-title {
+  font-size: 0.92rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  color: var(--text-primary);
+}
+.badge {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem;
+  font-weight: 800;
+  padding: 3px 9px;
+  border-radius: 6px;
+  letter-spacing: 0.03em;
+}
+.badge-test {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.35);
+}
+.phase-count-badge {
+  background: rgba(56, 189, 248, 0.14);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+}
+
+/* ─── CAMERA STREAM QUICK CARD ───────────────────────────────────────────── */
+.camera-link-card {
+  display: flex; align-items: center; gap: 14px; padding: 14px 16px;
+  background: linear-gradient(135deg, rgba(30, 58, 138, 0.35), rgba(13, 21, 38, 0.95));
+  border: 1.5px solid rgba(56, 189, 248, 0.35);
+  border-radius: var(--radius-lg);
+  text-decoration: none; color: inherit; transition: all 0.25s ease;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.4);
+}
+.camera-link-card:hover {
+  border-color: #38bdf8;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.45), rgba(15, 23, 42, 0.95));
+  transform: translateY(-2px);
+  box-shadow: 0 12px 28px rgba(56, 189, 248, 0.22);
+}
+.cam-link-icon {
+  width: 46px; height: 46px; border-radius: 12px;
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 22px;
+}
+.cam-link-details { flex: 1; }
+.cam-link-title { font-size: 0.9rem; font-weight: 800; color: #fff; }
+.cam-link-sub { font-size: 0.72rem; color: var(--text-secondary); margin-top: 2px; }
+.live-badge {
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.5);
+  color: #fca5a5;
+  animation: pulseLive 2s infinite;
+}
+@keyframes pulseLive { 0%, 100% { opacity: 1; } 50% { opacity: 0.55; } }
+
+/* ─── OPERATION MODE SELECTOR CARDS ──────────────────────────────────────── */
+.mode-cards { display: flex; flex-direction: column; gap: 9px; margin-bottom: 12px; }
+.mode-card {
+  padding: 12px 14px;
+  border-radius: var(--radius-md);
+  border: 1.5px solid var(--border-subtle);
+  background: var(--bg-inner);
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+.mode-card:hover {
+  border-color: rgba(56, 189, 248, 0.4);
+  background: var(--bg-inner-hover);
+  transform: translateX(2px);
+}
+.mode-card.active {
+  border-color: #38bdf8;
+  background: linear-gradient(135deg, rgba(37, 99, 235, 0.28), rgba(15, 23, 42, 0.92));
+  box-shadow: 0 0 20px rgba(56, 189, 248, 0.22), inset 0 0 12px rgba(56, 189, 248, 0.08);
+}
+.mode-card.mode-safe.active {
+  border-color: #ef4444;
+  background: linear-gradient(135deg, rgba(220, 38, 38, 0.28), rgba(15, 23, 42, 0.92));
+  box-shadow: 0 0 20px rgba(239, 68, 68, 0.28);
+}
+.mode-card-header { display: flex; align-items: center; gap: 8px; margin-bottom: 4px; }
+.mode-icon { font-size: 1.1rem; }
+.mode-name { font-size: 0.86rem; font-weight: 800; color: #fff; }
+.mode-desc { font-size: 0.72rem; color: var(--text-secondary); line-height: 1.38; }
+.chip-recommended {
+  font-size: 0.62rem; font-weight: 800; text-transform: uppercase;
+  background: linear-gradient(135deg, #10b981, #059669);
+  color: #fff; padding: 2px 7px; border-radius: 99px; margin-left: auto;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.4);
+}
+.current-mode-status {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; background: #060a14;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px; font-size: 0.76rem;
+}
+.current-mode-status strong {
+  font-family: 'JetBrains Mono', monospace;
+  color: #38bdf8;
+  font-weight: 800;
+}
+
+/* ─── HARDWARE PLC / LED TEST MATRIX (ARDUINO UNO PIN 2→13) ──────────────── */
+.test-guide-txt { font-size: 0.74rem; color: var(--text-secondary); margin-bottom: 10px; line-height: 1.4; }
+.quick-test-actions { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; margin-bottom: 12px; }
+.test-action-btn {
+  padding: 7px 6px; border-radius: 8px; border: 1px solid var(--border-light);
+  font-size: 0.71rem; font-weight: 800; cursor: pointer; text-align: center;
+  transition: all 0.2s; font-family: inherit;
+}
+.test-action-btn.on {
+  background: rgba(16, 185, 129, 0.14); color: #34d399; border-color: rgba(16, 185, 129, 0.4);
+}
+.test-action-btn.on:hover { background: rgba(16, 185, 129, 0.28); box-shadow: 0 0 12px rgba(16, 185, 129, 0.3); }
+.test-action-btn.off {
+  background: rgba(239, 68, 68, 0.14); color: #f87171; border-color: rgba(239, 68, 68, 0.4);
+}
+.test-action-btn.off:hover { background: rgba(239, 68, 68, 0.28); box-shadow: 0 0 12px rgba(239, 68, 68, 0.3); }
+.test-action-btn.seq {
+  background: rgba(56, 189, 248, 0.14); color: #38bdf8; border-color: rgba(56, 189, 248, 0.4);
+}
+.test-action-btn.seq:hover { background: rgba(56, 189, 248, 0.28); box-shadow: 0 0 12px rgba(56, 189, 248, 0.3); }
+
+.led-matrix-control { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.led-matrix-row {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 7px 10px;
+  background: #080d1a;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.14);
+}
+.row-label {
+  font-size: 0.74rem; font-weight: 800; color: #e2e8f0; width: 62px;
+  display: flex; align-items: center; gap: 4px;
+}
+.row-btns { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; flex: 1; }
+.led-btn {
+  padding: 5px 6px;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem; font-weight: 700;
+  border-radius: 6px;
+  border: 1px solid rgba(148, 163, 184, 0.2);
+  background: #0f172a;
+  cursor: pointer;
+  transition: all 0.18s ease;
+  display: flex; align-items: center; justify-content: center; gap: 5px;
+}
+.led-btn::before {
+  content: '';
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: currentColor;
+  opacity: 0.35;
+  transition: all 0.18s ease;
+}
+.led-btn.red { color: #f87171; }
+.led-btn.yellow { color: #fde047; }
+.led-btn.green { color: #4ade80; }
+
+.led-btn.active::before {
+  opacity: 1;
+  background: #fff;
+  box-shadow: 0 0 6px #fff;
+}
+.led-btn.active.red {
+  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  color: #fff;
+  border-color: #fca5a5;
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.65);
+}
+.led-btn.active.yellow {
+  background: linear-gradient(135deg, #f59e0b, #b45309);
+  color: #fff;
+  border-color: #fde047;
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.65);
+}
+.led-btn.active.green {
+  background: linear-gradient(135deg, #10b981, #047857);
+  color: #fff;
+  border-color: #86efac;
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.65);
+}
+.resume-auto-btn {
+  width: 100%; padding: 9px 12px; border-radius: 9px; border: 1px solid rgba(59, 130, 246, 0.5);
+  background: linear-gradient(135deg, #2563eb, #1d4ed8);
+  color: #fff; font-size: 0.78rem; font-weight: 800;
+  cursor: pointer; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+  transition: all 0.2s; font-family: inherit;
+}
+.resume-auto-btn:hover { transform: translateY(-1px); box-shadow: 0 6px 20px rgba(37, 99, 235, 0.6); }
+
+/* ─── SIM VEHICLE CONTROLS ───────────────────────────────────────────────── */
+.sim-guide-txt { font-size: 0.74rem; color: var(--text-secondary); margin-bottom: 12px; line-height: 1.4; }
+.sim-steppers-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 9px; margin-bottom: 12px; }
+.sim-stepper {
+  background: #080d1a;
+  border: 1px solid var(--border-subtle);
+  border-radius: 10px;
+  padding: 8px 10px;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.stepper-label { font-size: 0.76rem; font-weight: 800; color: var(--text-primary); }
+.stepper-controls { display: flex; align-items: center; gap: 6px; }
+.step-btn {
+  width: 26px; height: 26px; border-radius: 6px;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  background: #131e36; color: #fff; font-size: 0.95rem; font-weight: 800;
+  cursor: pointer; display: flex; align-items: center; justify-content: center;
+  transition: all 0.15s;
+}
+.step-btn:hover { background: #2563eb; border-color: #60a5fa; }
+.step-val {
+  min-width: 24px; text-align: center;
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.95rem; font-weight: 800; color: #38bdf8;
+}
+.sim-presets { margin-bottom: 10px; }
+.presets-title { font-size: 0.7rem; color: var(--text-muted); margin-bottom: 6px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.05em; }
+.presets-row { display: grid; grid-template-columns: 1fr; gap: 6px; }
+.preset-btn {
+  padding: 7px 11px; border-radius: 8px;
+  border: 1px solid var(--border-subtle);
+  background: var(--bg-inner); color: var(--text-secondary);
+  font-size: 0.74rem; font-weight: 700;
+  cursor: pointer; text-align: left; transition: all 0.2s; font-family: inherit;
+}
+.preset-btn:hover { background: #1e293b; color: #fff; border-color: #38bdf8; transform: translateX(2px); }
+.source-switch-btn {
+  width: 100%; padding: 8px 12px; border-radius: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.1); color: #38bdf8;
+  font-size: 0.76rem; font-weight: 800; cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.source-switch-btn:hover { background: rgba(56, 189, 248, 0.22); }
+
+/* ─── CENTER: DIGITAL TWIN INTERSECTION & FLOW BANNER ────────────────────── */
+.flow-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 14px 20px; border-radius: var(--radius-lg); border: 1.5px solid;
+  margin-bottom: 16px; transition: all 0.3s ease;
+  position: relative; overflow: hidden;
+}
+.flow-banner.state-green {
+  background: linear-gradient(135deg, rgba(6, 78, 59, 0.72), rgba(9, 14, 28, 0.96));
+  border-color: #10b981;
+  box-shadow: 0 0 28px rgba(16, 185, 129, 0.22), inset 0 0 20px rgba(16, 185, 129, 0.08);
+}
+.flow-banner.state-yellow {
+  background: linear-gradient(135deg, rgba(120, 53, 15, 0.72), rgba(9, 14, 28, 0.96));
+  border-color: #f59e0b;
+  box-shadow: 0 0 28px rgba(245, 158, 11, 0.22), inset 0 0 20px rgba(245, 158, 11, 0.08);
+}
+.flow-banner.state-red {
+  background: linear-gradient(135deg, rgba(127, 29, 29, 0.72), rgba(9, 14, 28, 0.96));
+  border-color: #ef4444;
+  box-shadow: 0 0 28px rgba(239, 68, 68, 0.22), inset 0 0 20px rgba(239, 68, 68, 0.08);
+}
+.banner-icon-box {
+  width: 50px; height: 50px;
+  border-radius: 14px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 26px; margin-right: 16px;
+}
+.banner-content { flex: 1; }
+.banner-sub {
+  font-size: 0.68rem; font-weight: 800; letter-spacing: 0.1em;
+  color: var(--text-secondary); text-transform: uppercase;
+}
+.banner-title {
+  font-size: 1.3rem; font-weight: 900; color: #fff;
+  letter-spacing: -0.01em; margin-top: 2px;
+}
+.banner-countdown {
+  text-align: right;
+  background: rgba(4, 7, 15, 0.65);
+  padding: 6px 16px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+.countdown-label { font-size: 0.62rem; font-weight: 800; color: var(--text-muted); letter-spacing: 0.08em; }
+.countdown-val {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 2.25rem; font-weight: 900;
+  line-height: 1; margin-top: 2px;
+  text-shadow: 0 0 18px currentColor;
+}
+.countdown-val small { font-size: 1.05rem; margin-left: 2px; opacity: 0.85; }
+
+/* Digital Twin SVG Container */
+.crossroad-wrapper {
+  background: radial-gradient(circle at center, #0b1324 0%, #050811 100%);
+  border: 2px solid rgba(56, 189, 248, 0.22);
+  border-radius: 20px;
+  padding: 12px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.95), 0 16px 40px rgba(0, 0, 0, 0.65);
+  overflow: hidden;
+  margin-bottom: 18px;
+  position: relative;
+}
+.realistic-svg-crossroad {
+  width: 100%;
+  max-width: 610px;
+  height: auto;
+  border-radius: 14px;
+  display: block;
+}
+.realistic-svg-crossroad circle.visor-lamp {
+  transition: all 0.18s ease-out;
+}
+.realistic-svg-crossroad circle.visor-lamp.active-red {
+  fill: #ef4444 !important; stroke: #fecaca !important; filter: url(#glow-red) !important;
+}
+.realistic-svg-crossroad circle.visor-lamp.active-yellow {
+  fill: #f59e0b !important; stroke: #fef08a !important; filter: url(#glow-yellow) !important;
+}
+.realistic-svg-crossroad circle.visor-lamp.active-green {
+  fill: #10b981 !important; stroke: #a7f3d0 !important; filter: url(#glow-green) !important;
+}
+.svg-car { transition: all 0.3s ease; }
+.svg-car.svg-car-moving { animation: svgCarPulse 1.1s infinite ease-in-out; }
+@keyframes svgCarPulse {
+  0%, 100% { opacity: 1; filter: drop-shadow(0 0 5px rgba(254, 240, 138, 0.5)); }
+  50% { opacity: 0.95; filter: drop-shadow(0 0 14px rgba(254, 240, 138, 0.9)); }
+}
+
+/* ─── 4-DIRECTION TELEMETRY & AI PRIORITY CARDS ──────────────────────────── */
+.density-container { margin-top: 4px; }
+.section-sub-title {
+  font-size: 0.78rem; font-weight: 800; color: var(--text-secondary);
+  margin-bottom: 10px; text-transform: uppercase; letter-spacing: 0.06em;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.density-cards-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+.density-box {
+  background: #080d1a;
+  border: 1px solid var(--border-subtle);
+  border-radius: var(--radius-md);
+  padding: 11px 14px;
+  transition: all 0.25s;
+}
+.density-box:hover { border-color: rgba(56, 189, 248, 0.35); }
+.density-box-top { display: flex; justify-content: space-between; align-items: center; margin-bottom: 7px; }
+.den-dir-name { font-size: 0.8rem; font-weight: 800; color: #fff; }
+.den-qty {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.85rem; font-weight: 800; color: #38bdf8;
+  background: rgba(56, 189, 248, 0.12);
+  padding: 2px 8px; border-radius: 6px;
+  border: 1px solid rgba(56, 189, 248, 0.25);
+}
+.den-meter-bar {
+  width: 100%; height: 7px; background: #0f172a; border-radius: 99px;
+  overflow: hidden; margin-bottom: 7px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.8);
+}
+.den-meter-fill {
+  height: 100%; width: 10%;
+  background: linear-gradient(90deg, #059669, #10b981);
+  border-radius: 99px; transition: width 0.35s ease;
+  box-shadow: 0 0 8px rgba(16, 185, 129, 0.5);
+}
+.den-meter-fill.medium {
+  background: linear-gradient(90deg, #d97706, #f59e0b);
+  box-shadow: 0 0 8px rgba(245, 158, 11, 0.5);
+}
+.den-meter-fill.high {
+  background: linear-gradient(90deg, #dc2626, #ef4444);
+  box-shadow: 0 0 10px rgba(239, 68, 68, 0.6);
+}
+.density-box-bot {
+  display: flex; justify-content: space-between; align-items: center;
+  font-size: 0.71rem; color: var(--text-muted);
+}
+.den-status-chip { font-weight: 800; }
+.den-status-chip.low { color: #34d399; }
+.den-status-chip.medium { color: #fbbf24; }
+.den-status-chip.high { color: #f87171; }
+.den-wait { font-family: 'JetBrains Mono', monospace; font-weight: 700; color: var(--text-secondary); }
+
+/* ─── RIGHT COLUMN: HARDWARE LCD 1602 MODULE (ARDUINO UNO A4/A5) ─────────── */
+.virtual-lcd-card {
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: linear-gradient(180deg, rgba(16, 26, 48, 0.95) 0%, rgba(10, 16, 30, 0.98) 100%);
+  position: relative;
+  overflow: hidden;
+}
+.virtual-lcd-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, #0284c7, #38bdf8, #10b981);
+}
+.badge-lcd-hw {
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+.badge-lcd-hw.connected {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+.lcd-guide-note { font-size: 0.73rem; color: var(--text-secondary); margin-bottom: 11px; line-height: 1.4; }
+.lcd-pcb-chassis {
+  position: relative;
+  background: linear-gradient(145deg, #0b2e1d 0%, #05180f 100%);
+  border: 2px solid #155e3b;
+  border-radius: 14px;
+  padding: 16px 14px 12px 14px;
+  box-shadow: inset 0 1px 2px rgba(255, 255, 255, 0.18), 0 10px 26px rgba(0, 0, 0, 0.7);
+  margin-bottom: 12px;
+}
+.screw {
+  position: absolute; width: 11px; height: 11px; border-radius: 50%;
+  background: radial-gradient(circle, #fde047 25%, #ca8a04 85%);
+  border: 1.5px solid #854d0e;
+  box-shadow: inset 0 1px 2px rgba(0,0,0,0.7);
+}
+.screw::after {
+  content: ''; position: absolute; top: 50%; left: 50%; width: 5px; height: 5px;
+  border-radius: 50%; background: #05180f; transform: translate(-50%, -50%);
+}
+.screw-tl { top: 6px; left: 6px; }
+.screw-tr { top: 6px; right: 6px; }
+.screw-bl { bottom: 6px; left: 6px; }
+.screw-br { bottom: 6px; right: 6px; }
+.pcb-header-bar { display: flex; justify-content: space-between; align-items: center; margin-bottom: 9px; padding: 0 6px; }
+.pcb-brand { display: flex; align-items: baseline; gap: 6px; }
+.pcb-logo { font-family: 'JetBrains Mono', monospace; font-weight: 800; font-size: 0.76rem; color: #f8fafc; letter-spacing: 0.05em; }
+.pcb-sub { font-size: 0.6rem; color: #34d399; font-weight: 800; letter-spacing: 0.08em; }
+.pcb-pins { display: flex; gap: 3px; }
+.pin-tag {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; padding: 1px 5px; border-radius: 3px;
+  background: #064e3b; color: #fde047; border: 1px solid #ca8a04; font-weight: 700;
+}
+.pin-tag.sda, .pin-tag.scl { background: #0c4a6e; color: #7dd3fc; border-color: #0284c7; }
+.pcb-pwr-led { display: flex; align-items: center; gap: 4px; }
+.pwr-dot {
+  width: 7px; height: 7px; border-radius: 50%; background: #ef4444;
+  box-shadow: 0 0 8px #ef4444, 0 0 14px rgba(239, 68, 68, 0.9);
+}
+.pwr-text { font-family: 'JetBrains Mono', monospace; font-size: 0.6rem; color: #fca5a5; font-weight: 800; }
+.lcd-bezel {
+  background: linear-gradient(180deg, #18181b 0%, #09090b 100%);
+  border: 3px solid #27272a; border-radius: 9px; padding: 8px 10px;
+  box-shadow: inset 0 3px 10px rgba(0, 0, 0, 0.95), 0 4px 12px rgba(0, 0, 0, 0.6);
+}
+.lcd-glass-screen {
+  border-radius: 5px; padding: 8px 6px; display: flex; flex-direction: column; gap: 6px;
+  overflow-x: auto; transition: all 0.25s ease;
+}
+.lcd-glass-screen.theme-blue {
+  background: #002244; border: 1px solid #004488;
+  box-shadow: inset 0 0 25px rgba(0, 80, 170, 0.75), 0 0 18px rgba(2, 132, 199, 0.25);
+}
+.lcd-glass-screen.theme-blue .lcd-cell {
+  background: rgba(0, 52, 105, 0.55); border: 1px solid rgba(56, 189, 248, 0.14);
+  color: #f0f9ff; text-shadow: 0 0 8px #7dd3fc, 0 0 14px #0284c7;
+}
+.lcd-glass-screen.theme-green {
+  background: #768d0e; border: 1px solid #556608;
+  box-shadow: inset 0 0 20px rgba(40, 50, 5, 0.55), 0 0 15px rgba(132, 160, 20, 0.2);
+}
+.lcd-glass-screen.theme-green .lcd-cell {
+  background: rgba(95, 115, 10, 0.45); border: 1px solid rgba(0, 0, 0, 0.16);
+  color: #141c02; text-shadow: 0 0 1px rgba(0, 0, 0, 0.5);
+}
+.lcd-matrix-row { display: grid; grid-template-columns: repeat(16, 1fr); gap: 2px; min-width: 310px; }
+.lcd-cell {
+  height: 28px; display: flex; align-items: center; justify-content: center;
+  font-family: 'JetBrains Mono', 'Courier New', monospace; font-size: 1.02rem; font-weight: 800;
+  border-radius: 2px; user-select: none;
+}
+.pcb-footer-bar { display: flex; justify-content: space-between; align-items: center; margin-top: 10px; padding: 0 4px; }
+.potentiometer-box { display: flex; align-items: center; gap: 6px; }
+.pot-dial {
+  width: 14px; height: 14px; border-radius: 50%; background: #2563eb;
+  border: 2px solid #93c5fd; position: relative;
+}
+.pot-dial::after {
+  content: ''; position: absolute; top: 1px; left: 4px; width: 2px; height: 8px; background: #fff; border-radius: 1px;
+}
+.pot-lbl { font-size: 0.58rem; color: #a7f3d0; font-weight: 700; letter-spacing: 0.04em; }
+.lcd-theme-toggles { display: flex; gap: 5px; }
+.lcd-theme-btn {
+  padding: 3px 8px; font-size: 0.66rem; font-weight: 700; border-radius: 5px;
+  border: 1px solid #334155; background: #0f172a; color: #94a3b8; cursor: pointer; transition: all 0.2s;
+}
+.lcd-theme-btn.active {
+  background: #0284c7; color: #ffffff; border-color: #38bdf8; box-shadow: 0 0 10px rgba(2, 132, 199, 0.4);
+}
+.lcd-sub-controls { margin-top: 8px; }
+.lcd-status-msg {
+  font-size: 0.72rem; color: #fbbf24; background: rgba(245, 158, 11, 0.1);
+  border-left: 3px solid #f59e0b; padding: 7px 10px; border-radius: 6px; margin-bottom: 8px; line-height: 1.4;
+}
+.lcd-status-msg.ok { color: #34d399; background: rgba(16, 185, 129, 0.12); border-left-color: #10b981; }
+.lcd-reconnect-btn {
+  width: 100%; padding: 8px 10px; border-radius: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  background: rgba(56, 189, 248, 0.1); color: #38bdf8;
+  font-size: 0.74rem; font-weight: 800; cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.lcd-reconnect-btn:hover { background: rgba(56, 189, 248, 0.22); border-color: #38bdf8; }
+
+/* ─── SYSTEM HARDWARE STATUS & LOGS ──────────────────────────────────────── */
+.sys-grid { display: grid; grid-template-columns: 1fr; gap: 7px; }
+.sys-item {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 7px 11px; background: #080d1a;
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px; font-size: 0.75rem;
+}
+.sys-label { color: var(--text-secondary); font-weight: 600; }
+.tag {
+  font-family: 'JetBrains Mono', monospace;
+  font-size: 0.68rem; font-weight: 800; padding: 2px 8px; border-radius: 5px;
+}
+.tag.ok { background: rgba(16, 185, 129, 0.16); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.35); }
+.tag.sim { background: rgba(245, 158, 11, 0.16); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.35); }
+.tag.num { color: #38bdf8; background: rgba(56, 189, 248, 0.1); border: 1px solid rgba(56, 189, 248, 0.25); }
+
+.log-wrap {
+  max-height: 175px; overflow-y: auto; display: flex; flex-direction: column; gap: 6px;
+  font-size: 0.72rem; font-family: 'JetBrains Mono', monospace;
+}
+.log-empty { color: var(--text-muted); font-size: 0.74rem; text-align: center; padding: 16px 0; }
+.log-item {
+  padding: 7px 10px; border-radius: 6px; background: #080d1a;
+  border: 1px solid var(--border-subtle);
+  border-left: 3px solid #334155;
+}
+.log-item.green { border-left-color: #10b981; }
+.log-item.yellow { border-left-color: #f59e0b; }
+.log-item.red { border-left-color: #ef4444; }
+.log-time { color: var(--text-muted); margin-right: 6px; }
+
+/* Responsive Breakpoints */
+@media (max-width: 1360px) {
+  .kpi-strip { grid-template-columns: repeat(2, 1fr); }
+  .grid { grid-template-columns: 340px 1fr; }
+  .col-right { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr; gap: 18px; }
+}
+@media (max-width: 900px) {
+  .kpi-strip { grid-template-columns: 1fr; }
+  .grid { grid-template-columns: 1fr; }
+  .col-right { grid-column: auto; display: flex; flex-direction: column; }
+  .header { flex-direction: column; gap: 12px; align-items: flex-start; }
+  .header-right { width: 100%; justify-content: space-between; flex-wrap: wrap; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- 1. TOP COMMAND HEADER -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo-box">🚦</div>
+      <div>
+        <div class="title-badge-row">
+          <span class="sys-tag">ITS-SCADA v6.0</span>
+          <h1 class="header-title">TRUNG TÂM ĐIỀU HÀNH GIAO THÔNG THÔNG MINH 4 HƯỚNG</h1>
+        </div>
+        <p class="header-sub">
+          <span>Master: <strong>Raspberry Pi 5 (AI Vision)</strong></span>
+          <span>⇄</span>
+          <span>Slave: <strong>Arduino Uno R3</strong> <code id="hdr-port-code">COM /dev/ttyUSB0 • Pin 2→13</code></span>
+        </p>
+      </div>
+    </div>
+    <div class="header-right">
+      <nav class="header-nav">
+        <a href="/" class="nav-item active">🚦 Bản Đồ Số Giao Lộ</a>
+        <a href="/camera" class="nav-item">📷 Camera AI Trực Tiếp</a>
+      </nav>
+
+      <div class="status-pill connected" id="sys-status">
+        <span class="pulse-dot"></span>
+        <span id="sys-status-text">Pi 5 ⇄ Uno R3 Online</span>
+      </div>
+      <div class="clock-box" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <!-- 2. TELEMETRY KPI STRIP -->
+  <section class="kpi-strip">
+    <div class="kpi-card kpi-green">
+      <div class="kpi-info">
+        <span class="kpi-label">Luồng Ưu Tiên Hiện Tại</span>
+        <div class="kpi-val" id="kpi-active-dir">HƯỚNG ĐÔNG</div>
+        <span class="kpi-sub" id="kpi-active-state">ĐÈN XANH • CHO PHÉP LƯU THÔNG</span>
+      </div>
+      <div class="kpi-icon">🧭</div>
+    </div>
+
+    <div class="kpi-card kpi-cyan">
+      <div class="kpi-info">
+        <span class="kpi-label">Thời Gian Pha Còn Lại</span>
+        <div class="kpi-val mono" id="kpi-countdown">25s</div>
+        <span class="kpi-sub">Chu kỳ chuyển pha tự động FSM</span>
+      </div>
+      <div class="kpi-icon">⏱️</div>
+    </div>
+
+    <div class="kpi-card kpi-amber">
+      <div class="kpi-info">
+        <span class="kpi-label">Tổng Lưu Lượng Giao Lộ</span>
+        <div class="kpi-val mono" id="kpi-total-vehicles">0 xe</div>
+        <span class="kpi-sub" id="kpi-vision-mode">Nguồn dữ liệu: Nhận diện Camera AI</span>
+      </div>
+      <div class="kpi-icon">🚗</div>
+    </div>
+
+    <div class="kpi-card">
+      <div class="kpi-info">
+        <span class="kpi-label">Vi Điều Khiển Chấp Hành</span>
+        <div class="kpi-val" id="kpi-hw-status">ARDUINO UNO R3</div>
+        <span class="kpi-sub" id="kpi-hw-sub">12 LED (Pin 2→13) • LCD I2C (A4/A5)</span>
+      </div>
+      <div class="kpi-icon">🔌</div>
+    </div>
+  </section>
+
+  <!-- 3. MAIN 3-COLUMN COMMAND GRID -->
+  <main class="grid">
+
+    <!-- CỘT TRÁI: Chế độ + Bảng điều khiển PLC 12 LED + Giả lập xe -->
+    <section class="col-left">
+
+      <!-- Nút mở Camera AI chuyên dụng -->
+      <a href="/camera" class="camera-link-card">
+        <div class="cam-link-icon">📷</div>
+        <div class="cam-link-details">
+          <div class="cam-link-title">Mở Màn Hình Camera Nhận Diện AI →</div>
+          <div class="cam-link-sub">Xem luồng video trực tiếp • Vùng ROI 4 hướng</div>
+        </div>
+        <span class="badge live-badge">● LIVE</span>
+      </a>
+
+      <!-- Lựa chọn chế độ vận hành -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-icon">⚙️</span>
+            <span class="card-title">Chế Độ Vận Hành Hệ Thống</span>
+          </div>
+        </div>
+
+        <div class="mode-cards">
+          <div class="mode-card" id="btn-fixed" onclick="setMode('FIXED')">
+            <div class="mode-card-header">
+              <span class="mode-icon">⏱️</span>
+              <span class="mode-name">Chu Kỳ Cố Định (Fixed-Time)</span>
+            </div>
+            <p class="mode-desc">Luân phiên 4 hướng Bắc → Đông → Nam → Tây với 30s đèn xanh cố định.</p>
+          </div>
+
+          <div class="mode-card" id="btn-adaptive" onclick="setMode('ADAPTIVE')">
+            <div class="mode-card-header">
+              <span class="mode-icon">🧠</span>
+              <span class="mode-name">Thích Nghi Thông Minh (AI Adaptive)</span>
+              <span class="chip-recommended">Tối ưu AI</span>
+            </div>
+            <p class="mode-desc">Tự động phân bổ 15s – 50s đèn xanh theo mật độ xe và thời gian chờ từng hướng.</p>
+          </div>
+
+          <div class="mode-card mode-safe" id="btn-safe" onclick="setMode('SAFE')">
+            <div class="mode-card-header">
+              <span class="mode-icon">🛡️</span>
+              <span class="mode-name">Khẩn Cấp / Toàn Đỏ (Safe Mode)</span>
+            </div>
+            <p class="mode-desc">Bật ĐỎ toàn bộ 4 hướng ngay lập tức để nhường đường xe ưu tiên hoặc xử lý sự cố.</p>
+          </div>
+        </div>
+
+        <div class="current-mode-status">
+          <span>Trạng thái vận hành:</span>
+          <strong id="mode-label">ĐANG CẬP NHẬT...</strong>
+        </div>
+      </div>
+
+      <!-- BẢNG KIỂM TRA ĐÈN THỦ CÔNG & BẮT BỆNH ĐỨT DÂY (ARDUINO UNO PIN 2→13) -->
+      <div class="card hardware-test-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-icon">🛠️</span>
+            <span class="card-title">Bảng Điều Khiển 12 Đèn LED (Uno)</span>
+          </div>
+          <span class="badge badge-test">PIN 2 → 13</span>
+        </div>
+
+        <p class="test-guide-txt">Bấm trực tiếp để kích hoạt từng chân Digital (Pin 2 → 13) trên Arduino Uno R3:</p>
+
+        <div class="quick-test-actions">
+          <button class="test-action-btn on" onclick="manualAll(true)">⚡ Bật Hết 12 Đèn</button>
+          <button class="test-action-btn off" onclick="manualAll(false)">⏹ Tắt Hết</button>
+          <button class="test-action-btn seq" onclick="manualSelfTest()">🔄 Test Tuần Tự</button>
+        </div>
+
+        <div class="led-matrix-control">
+          <!-- BẮC -->
+          <div class="led-matrix-row">
+            <span class="row-label">⬆️ BẮC</span>
+            <div class="row-btns">
+              <button class="led-btn red" id="btn-NORTH-RED" onclick="toggleLed('NORTH','RED')">Đỏ (P2)</button>
+              <button class="led-btn yellow" id="btn-NORTH-YELLOW" onclick="toggleLed('NORTH','YELLOW')">Vàng (P3)</button>
+              <button class="led-btn green" id="btn-NORTH-GREEN" onclick="toggleLed('NORTH','GREEN')">Xanh (P4)</button>
+            </div>
+          </div>
+
+          <!-- NAM -->
+          <div class="led-matrix-row">
+            <span class="row-label">⬇️ NAM</span>
+            <div class="row-btns">
+              <button class="led-btn red" id="btn-SOUTH-RED" onclick="toggleLed('SOUTH','RED')">Đỏ (P5)</button>
+              <button class="led-btn yellow" id="btn-SOUTH-YELLOW" onclick="toggleLed('SOUTH','YELLOW')">Vàng (P6)</button>
+              <button class="led-btn green" id="btn-SOUTH-GREEN" onclick="toggleLed('SOUTH','GREEN')">Xanh (P7)</button>
+            </div>
+          </div>
+
+          <!-- ĐÔNG -->
+          <div class="led-matrix-row">
+            <span class="row-label">➡️ ĐÔNG</span>
+            <div class="row-btns">
+              <button class="led-btn red" id="btn-EAST-RED" onclick="toggleLed('EAST','RED')">Đỏ (P8)</button>
+              <button class="led-btn yellow" id="btn-EAST-YELLOW" onclick="toggleLed('EAST','YELLOW')">Vàng (P9)</button>
+              <button class="led-btn green" id="btn-EAST-GREEN" onclick="toggleLed('EAST','GREEN')">Xanh (P10)</button>
+            </div>
+          </div>
+
+          <!-- TÂY -->
+          <div class="led-matrix-row">
+            <span class="row-label">⬅️ TÂY</span>
+            <div class="row-btns">
+              <button class="led-btn red" id="btn-WEST-RED" onclick="toggleLed('WEST','RED')">Đỏ (P11)</button>
+              <button class="led-btn yellow" id="btn-WEST-YELLOW" onclick="toggleLed('WEST','YELLOW')">Vàng (P12)</button>
+              <button class="led-btn green" id="btn-WEST-GREEN" onclick="toggleLed('WEST','GREEN')">Xanh (P13)</button>
+            </div>
+          </div>
+        </div>
+
+        <button class="resume-auto-btn" onclick="setMode('FIXED')">▶ Quay Lại Chu Kỳ Tự Động</button>
+      </div>
+
+      <!-- BẢNG GIẢ LẬP SỐ XE ĐỂ THỬ NGHIỆM THUẬT TOÁN THÍCH NGHI -->
+      <div class="card sim-vehicle-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-icon">🎛️</span>
+            <span class="card-title">Giả Lập Lưu Lượng (Test AI)</span>
+          </div>
+          <span class="badge phase-count-badge" id="source-badge">TỰ DO CHỈNH</span>
+        </div>
+
+        <p class="sim-guide-txt">Tăng/giảm số xe từng nhánh để kiểm thử thuật toán cấp thời gian xanh thích nghi:</p>
+
+        <div class="sim-steppers-grid">
+          <div class="sim-stepper">
+            <span class="stepper-label">⬆️ BẮC</span>
+            <div class="stepper-controls">
+              <button class="step-btn" onclick="adjustSimCount('NORTH', -1)">−</button>
+              <span class="step-val" id="sim-val-NORTH">0</span>
+              <button class="step-btn" onclick="adjustSimCount('NORTH', 1)">+</button>
+            </div>
+          </div>
+
+          <div class="sim-stepper">
+            <span class="stepper-label">⬇️ NAM</span>
+            <div class="stepper-controls">
+              <button class="step-btn" onclick="adjustSimCount('SOUTH', -1)">−</button>
+              <span class="step-val" id="sim-val-SOUTH">0</span>
+              <button class="step-btn" onclick="adjustSimCount('SOUTH', 1)">+</button>
+            </div>
+          </div>
+
+          <div class="sim-stepper">
+            <span class="stepper-label">➡️ ĐÔNG</span>
+            <div class="stepper-controls">
+              <button class="step-btn" onclick="adjustSimCount('EAST', -1)">−</button>
+              <span class="step-val" id="sim-val-EAST">0</span>
+              <button class="step-btn" onclick="adjustSimCount('EAST', 1)">+</button>
+            </div>
+          </div>
+
+          <div class="sim-stepper">
+            <span class="stepper-label">⬅️ TÂY</span>
+            <div class="stepper-controls">
+              <button class="step-btn" onclick="adjustSimCount('WEST', -1)">−</button>
+              <span class="step-val" id="sim-val-WEST">0</span>
+              <button class="step-btn" onclick="adjustSimCount('WEST', 1)">+</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="sim-presets">
+          <div class="presets-title">Kịch bản mẫu báo cáo hội đồng:</div>
+          <div class="presets-row">
+            <button class="preset-btn" onclick="applyPreset('EAST_CONGESTION')">🚗 Kịch bản 1: Hướng Đông Ùn Tắc (8 xe → Cấp 50s Xanh)</button>
+            <button class="preset-btn" onclick="applyPreset('NORTH_CONGESTION')">🚗 Kịch bản 2: Hướng Bắc Ùn Tắc (9 xe → Cấp 50s Xanh)</button>
+            <button class="preset-btn" onclick="applyPreset('CLEAR')">🌿 Kịch bản 3: Giao Lộ Thông Thoáng (1 xe → Cấp 15s Xanh)</button>
+          </div>
+        </div>
+
+        <button class="source-switch-btn" id="btn-use-camera" onclick="switchSource('CAMERA')">📷 Chuyển Về Đếm Xe Từ Camera Thực</button>
+      </div>
+
+    </section>
+
+    <!-- CỘT GIỮA: Bản Đồ Số Giao Lộ (DIGITAL TWIN CROSSROADS) -->
+    <section class="col-mid">
+
+      <div class="card intersection-main-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-icon">🗺️</span>
+            <span class="card-title">Bản Đồ Số Giao Lộ Thời Gian Thực (Digital Twin 4 Hướng)</span>
+          </div>
+          <div class="badge phase-count-badge">Pha thứ: #<span id="header-phase-num">1</span></div>
+        </div>
+
+        <!-- BĂNG THÔNG BÁO TRẠNG THÁI CHÍNH -->
+        <div class="flow-banner state-green" id="flow-banner">
+          <div class="banner-icon-box" id="banner-icon-box">
+            <span id="banner-dot">🟢</span>
+          </div>
+          <div class="banner-content">
+            <div class="banner-sub">TRẠNG THÁI ĐIỀU HÀNH GIAO LỘ HIỆN TẠI</div>
+            <div class="banner-title" id="banner-title">HƯỚNG ĐÔNG (EAST) ĐƯỢC ĐI</div>
+          </div>
+          <div class="banner-countdown">
+            <div class="countdown-label">ĐẾM NGƯỢC</div>
+            <div class="countdown-val" id="banner-countdown">25<small>s</small></div>
+          </div>
+        </div>
+
+        <!-- MÔ HÌNH NGÃ TƯ VECTOR SVG SIÊU THỰC -->
+        <div class="crossroad-wrapper">
+          <svg class="realistic-svg-crossroad" viewBox="0 0 600 600" width="100%" height="auto" preserveAspectRatio="xMidYMid meet">
+            <defs>
+              <filter id="glow-red" x="-60%" y="-60%" width="220%" height="220%">
+                <feGaussianBlur stdDeviation="6.5" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glow-yellow" x="-60%" y="-60%" width="220%" height="220%">
+                <feGaussianBlur stdDeviation="6.5" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glow-green" x="-60%" y="-60%" width="220%" height="220%">
+                <feGaussianBlur stdDeviation="6.5" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+              <filter id="glow-cyan" x="-50%" y="-50%" width="200%" height="200%">
+                <feGaussianBlur stdDeviation="5" result="blur"/>
+                <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+              </filter>
+
+              <pattern id="yellow-hatch" width="20" height="20" patternTransform="rotate(45 0 0)" patternUnits="userSpaceOnUse">
+                <line x1="0" y1="0" x2="0" y2="20" stroke="#eab308" stroke-width="2" stroke-opacity="0.4"/>
+                <line x1="0" y1="0" x2="20" y2="0" stroke="#eab308" stroke-width="2" stroke-opacity="0.4"/>
+              </pattern>
+
+              <linearGradient id="park-lawn" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#0f3923"/>
+                <stop offset="100%" stop-color="#071f12"/>
+              </linearGradient>
+
+              <linearGradient id="sidewalk-granite" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#1e293b"/>
+                <stop offset="100%" stop-color="#0f172a"/>
+              </linearGradient>
+
+              <radialGradient id="street-lamp-glow" cx="50%" cy="50%" r="50%">
+                <stop offset="0%" stop-color="#38bdf8" stop-opacity="0.24"/>
+                <stop offset="50%" stop-color="#0284c7" stop-opacity="0.08"/>
+                <stop offset="100%" stop-color="#38bdf8" stop-opacity="0"/>
+              </radialGradient>
+
+              <linearGradient id="headlight-beam" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#fef08a" stop-opacity="0.5"/>
+                <stop offset="100%" stop-color="#fef08a" stop-opacity="0"/>
+              </linearGradient>
+
+              <radialGradient id="asphalt-grad" cx="50%" cy="50%" r="65%">
+                <stop offset="0%" stop-color="#1b2434"/>
+                <stop offset="70%" stop-color="#121824"/>
+                <stop offset="100%" stop-color="#0a0e17"/>
+              </radialGradient>
+            </defs>
+
+            <!-- 1. NỀN ĐÔ THỊ -->
+            <rect width="600" height="600" rx="18" fill="#060a12" stroke="#1e293b" stroke-width="2"/>
+
+            <!-- 2. MẶT ĐƯỜNG NHỰA 4 NHÁNH -->
+            <rect x="200" y="0" width="200" height="600" fill="url(#asphalt-grad)"/>
+            <rect x="0" y="200" width="600" height="200" fill="url(#asphalt-grad)"/>
+
+            <!-- Làn chia cách phụ -->
+            <line x1="250" y1="0" x2="250" y2="160" stroke="#334155" stroke-width="1.5" stroke-dasharray="10,10"/>
+            <line x1="350" y1="0" x2="350" y2="160" stroke="#334155" stroke-width="1.5" stroke-dasharray="10,10"/>
+            <line x1="250" y1="440" x2="250" y2="600" stroke="#334155" stroke-width="1.5" stroke-dasharray="10,10"/>
+            <line x1="350" y1="440" x2="350" y2="600" stroke="#334155" stroke-width="1.5" stroke-dasharray="10,10"/>
+            <line x1="0" y1="250" x2="160" y2="250" stroke="#334155" stroke-width="1.5" stroke-dasharray="10,10"/>
+            <line x1="0" y1="350" x2="160" y2="350" stroke="#334155" stroke-width="1.5" stroke-dasharray="10,10"/>
+            <line x1="440" y1="250" x2="600" y2="250" stroke="#334155" stroke-width="1.5" stroke-dasharray="10,10"/>
+            <line x1="440" y1="350" x2="600" y2="350" stroke="#334155" stroke-width="1.5" stroke-dasharray="10,10"/>
+
+            <!-- 3. 4 GÓC ĐÔ THỊ & CÔNG VIÊN CÂY XANH -->
+            <!-- Tây Bắc (NW) -->
+            <path d="M 0,0 L 200,0 L 200,160 A 40,40 0 0,1 160,200 L 0,200 Z" fill="url(#sidewalk-granite)" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.5"/>
+            <rect x="16" y="16" width="136" height="136" rx="16" fill="url(#park-lawn)" stroke="#15803d" stroke-width="1.5"/>
+            <g transform="translate(65, 55)">
+              <circle cx="0" cy="0" r="22" fill="#14532d"/>
+              <circle cx="-4" cy="-4" r="15" fill="#16a34a"/>
+              <circle cx="5" cy="3" r="11" fill="#22c55e" opacity="0.85"/>
+            </g>
+            <g transform="translate(112, 112)">
+              <circle cx="0" cy="0" r="20" fill="#14532d"/>
+              <circle cx="-4" cy="-4" r="13" fill="#16a34a"/>
+              <circle cx="4" cy="2" r="9" fill="#4ade80" opacity="0.8"/>
+            </g>
+
+            <!-- Đông Bắc (NE) -->
+            <path d="M 400,0 L 600,0 L 600,200 L 440,200 A 40,40 0 0,1 400,160 Z" fill="url(#sidewalk-granite)" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.5"/>
+            <rect x="448" y="16" width="136" height="136" rx="16" fill="url(#park-lawn)" stroke="#15803d" stroke-width="1.5"/>
+            <g transform="translate(495, 55)">
+              <circle cx="0" cy="0" r="22" fill="#14532d"/>
+              <circle cx="-4" cy="-4" r="15" fill="#16a34a"/>
+              <circle cx="5" cy="3" r="11" fill="#22c55e" opacity="0.85"/>
+            </g>
+            <g transform="translate(538, 112)">
+              <circle cx="0" cy="0" r="20" fill="#14532d"/>
+              <circle cx="-4" cy="-4" r="13" fill="#16a34a"/>
+              <circle cx="4" cy="2" r="9" fill="#4ade80" opacity="0.8"/>
+            </g>
+
+            <!-- Tây Nam (SW) -->
+            <path d="M 0,400 L 160,400 A 40,40 0 0,1 200,440 L 200,600 L 0,600 Z" fill="url(#sidewalk-granite)" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.5"/>
+            <rect x="16" y="448" width="136" height="136" rx="16" fill="url(#park-lawn)" stroke="#15803d" stroke-width="1.5"/>
+            <g transform="translate(65, 495)">
+              <circle cx="0" cy="0" r="22" fill="#14532d"/>
+              <circle cx="-4" cy="-4" r="15" fill="#16a34a"/>
+              <circle cx="5" cy="3" r="11" fill="#22c55e" opacity="0.85"/>
+            </g>
+            <g transform="translate(112, 542)">
+              <circle cx="0" cy="0" r="20" fill="#14532d"/>
+              <circle cx="-4" cy="-4" r="13" fill="#16a34a"/>
+              <circle cx="4" cy="2" r="9" fill="#4ade80" opacity="0.8"/>
+            </g>
+
+            <!-- Đông Nam (SE) -->
+            <path d="M 440,400 L 600,400 L 600,600 L 400,600 L 400,440 A 40,40 0 0,1 440,400 Z" fill="url(#sidewalk-granite)" stroke="#38bdf8" stroke-width="2" stroke-opacity="0.5"/>
+            <rect x="448" y="448" width="136" height="136" rx="16" fill="url(#park-lawn)" stroke="#15803d" stroke-width="1.5"/>
+            <g transform="translate(495, 495)">
+              <circle cx="0" cy="0" r="22" fill="#14532d"/>
+              <circle cx="-4" cy="-4" r="15" fill="#16a34a"/>
+              <circle cx="5" cy="3" r="11" fill="#22c55e" opacity="0.85"/>
+            </g>
+            <g transform="translate(538, 542)">
+              <circle cx="0" cy="0" r="20" fill="#14532d"/>
+              <circle cx="-4" cy="-4" r="13" fill="#16a34a"/>
+              <circle cx="4" cy="2" r="9" fill="#4ade80" opacity="0.8"/>
+            </g>
+
+            <!-- Ánh sáng góc giao lộ -->
+            <circle cx="165" cy="165" r="85" fill="url(#street-lamp-glow)"/>
+            <circle cx="435" cy="165" r="85" fill="url(#street-lamp-glow)"/>
+            <circle cx="165" cy="435" r="85" fill="url(#street-lamp-glow)"/>
+            <circle cx="435" cy="435" r="85" fill="url(#street-lamp-glow)"/>
+
+            <!-- 4. TIM ĐƯỜNG ĐÔI MÀU VÀNG -->
+            <line x1="298" y1="0" x2="298" y2="155" stroke="#eab308" stroke-width="2.5"/>
+            <line x1="302" y1="0" x2="302" y2="155" stroke="#eab308" stroke-width="2.5"/>
+            <line x1="298" y1="445" x2="298" y2="600" stroke="#eab308" stroke-width="2.5"/>
+            <line x1="302" y1="445" x2="302" y2="600" stroke="#eab308" stroke-width="2.5"/>
+            <line x1="0" y1="298" x2="155" y2="298" stroke="#eab308" stroke-width="2.5"/>
+            <line x1="0" y1="302" x2="155" y2="302" stroke="#eab308" stroke-width="2.5"/>
+            <line x1="445" y1="298" x2="600" y2="298" stroke="#eab308" stroke-width="2.5"/>
+            <line x1="445" y1="302" x2="600" y2="302" stroke="#eab308" stroke-width="2.5"/>
+
+            <!-- 5. VẠCH DỪNG XE (STOP LINES) -->
+            <line x1="200" y1="164" x2="296" y2="164" stroke="#ffffff" stroke-width="5"/>
+            <line x1="304" y1="436" x2="400" y2="436" stroke="#ffffff" stroke-width="5"/>
+            <line x1="164" y1="304" x2="164" y2="400" stroke="#ffffff" stroke-width="5"/>
+            <line x1="436" y1="200" x2="436" y2="296" stroke="#ffffff" stroke-width="5"/>
+
+            <!-- 6. VẠCH NGỰA VẰN QUA ĐƯỜNG -->
+            <g opacity="0.88" fill="#e2e8f0">
+              <rect x="210" y="172" width="14" height="22" rx="2"/><rect x="236" y="172" width="14" height="22" rx="2"/><rect x="262" y="172" width="14" height="22" rx="2"/>
+              <rect x="322" y="172" width="14" height="22" rx="2"/><rect x="348" y="172" width="14" height="22" rx="2"/><rect x="374" y="172" width="14" height="22" rx="2"/>
+              <rect x="210" y="406" width="14" height="22" rx="2"/><rect x="236" y="406" width="14" height="22" rx="2"/><rect x="262" y="406" width="14" height="22" rx="2"/>
+              <rect x="322" y="406" width="14" height="22" rx="2"/><rect x="348" y="406" width="14" height="22" rx="2"/><rect x="374" y="406" width="14" height="22" rx="2"/>
+              <rect x="172" y="210" width="22" height="14" rx="2"/><rect x="172" y="236" width="22" height="14" rx="2"/><rect x="172" y="262" width="22" height="14" rx="2"/>
+              <rect x="172" y="322" width="22" height="14" rx="2"/><rect x="172" y="348" width="22" height="14" rx="2"/><rect x="172" y="374" width="22" height="14" rx="2"/>
+              <rect x="406" y="210" width="22" height="14" rx="2"/><rect x="406" y="236" width="22" height="14" rx="2"/><rect x="406" y="262" width="22" height="14" rx="2"/>
+              <rect x="406" y="322" width="22" height="14" rx="2"/><rect x="406" y="348" width="22" height="14" rx="2"/><rect x="406" y="374" width="22" height="14" rx="2"/>
+            </g>
+
+            <!-- 7. MŨI TÊN CHỈ HƯỚNG LÀN ĐƯỜNG -->
+            <text x="250" y="75" font-size="22" fill="#94a3b8" fill-opacity="0.4" text-anchor="middle" font-weight="900">▼</text>
+            <text x="350" y="75" font-size="22" fill="#94a3b8" fill-opacity="0.4" text-anchor="middle" font-weight="900">▲</text>
+            <text x="350" y="545" font-size="22" fill="#94a3b8" fill-opacity="0.4" text-anchor="middle" font-weight="900">▲</text>
+            <text x="250" y="545" font-size="22" fill="#94a3b8" fill-opacity="0.4" text-anchor="middle" font-weight="900">▼</text>
+            <text x="75" y="358" font-size="22" fill="#94a3b8" fill-opacity="0.4" text-anchor="middle" font-weight="900">►</text>
+            <text x="75" y="258" font-size="22" fill="#94a3b8" fill-opacity="0.4" text-anchor="middle" font-weight="900">◄</text>
+            <text x="525" y="258" font-size="22" fill="#94a3b8" fill-opacity="0.4" text-anchor="middle" font-weight="900">◄</text>
+            <text x="525" y="358" font-size="22" fill="#94a3b8" fill-opacity="0.4" text-anchor="middle" font-weight="900">►</text>
+
+            <!-- 8. VẠCH MẮT VÕNG TÂM GIAO LỘ -->
+            <rect x="202" y="202" width="196" height="196" fill="url(#yellow-hatch)" stroke="#eab308" stroke-width="2" stroke-opacity="0.55"/>
+
+            <!-- 9. CÁC XE Ô TÔ TRÊN LÀN ĐƯỜNG -->
+            <g id="cars-NORTH"></g>
+            <g id="cars-SOUTH"></g>
+            <g id="cars-EAST"></g>
+            <g id="cars-WEST"></g>
+
+            <!-- 10. TÂM HUD LA BÀN & ĐẾM NGƯỢC THỜI GIAN THỰC -->
+            <g transform="translate(300, 300)">
+              <circle r="50" fill="#070c18" fill-opacity="0.96" stroke="#38bdf8" stroke-width="2.5" filter="url(#glow-cyan)"/>
+              <circle r="43" fill="none" stroke="#1e293b" stroke-width="1.5" stroke-dasharray="5,3"/>
+
+              <text x="0" y="-33" font-size="7.5" fill="#64748b" font-weight="800" text-anchor="middle">BẮC</text>
+              <text x="0" y="40" font-size="7.5" fill="#64748b" font-weight="800" text-anchor="middle">NAM</text>
+              <text x="33" y="3" font-size="7.5" fill="#64748b" font-weight="800" text-anchor="middle">ĐÔNG</text>
+              <text x="-33" y="3" font-size="7.5" fill="#64748b" font-weight="800" text-anchor="middle">TÂY</text>
+
+              <text id="hub-active-dir" x="0" y="-13" font-size="11.5" fill="#38bdf8" font-weight="900" text-anchor="middle">ĐÔNG</text>
+              <text id="hub-countdown" x="0" y="11" font-size="23" fill="#10b981" font-family="'JetBrains Mono', monospace" font-weight="900" text-anchor="middle">25s</text>
+              <text id="hub-status-txt" x="0" y="25" font-size="8" fill="#10b981" font-weight="800" text-anchor="middle">CHO PHÉP ĐI</text>
+            </g>
+
+            <!-- 11. 4 CỤM CỘT ĐÈN TÍN HIỆU GIAO THÔNG & BẢNG ĐIỆN TỬ -->
+            <!-- BẮC (NORTH - Pin 2,3,4) -->
+            <g transform="translate(412, 54)">
+              <rect x="0" y="0" width="32" height="86" rx="9" fill="#080d18" stroke="#38bdf8" stroke-width="1.8" stroke-opacity="0.7"/>
+              <circle id="NORTH-RED" class="visor-lamp red" cx="16" cy="18" r="10" fill="#2d1212" stroke="#4a1515" stroke-width="1.5"/>
+              <circle id="NORTH-YELLOW" class="visor-lamp yellow" cx="16" cy="43" r="10" fill="#2d2212" stroke="#4a3715" stroke-width="1.5"/>
+              <circle id="NORTH-GREEN" class="visor-lamp green" cx="16" cy="68" r="10" fill="#122d1f" stroke="#154a2a" stroke-width="1.5"/>
+              <rect x="38" y="14" width="82" height="56" rx="9" fill="#090f1d" stroke="#334155" stroke-width="1.5"/>
+              <text x="79" y="30" font-size="10" fill="#38bdf8" font-weight="800" text-anchor="middle">BẮC (P2-4)</text>
+              <text id="badge-NORTH" x="79" y="45" font-size="9" fill="#f87171" font-weight="800" text-anchor="middle">DỪNG LẠI</text>
+              <text id="cnt-NORTH" x="79" y="60" font-size="9" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-weight="700" text-anchor="middle">🚗 0 xe</text>
+            </g>
+
+            <!-- NAM (SOUTH - Pin 5,6,7) -->
+            <g transform="translate(156, 456)">
+              <rect x="0" y="0" width="32" height="86" rx="9" fill="#080d18" stroke="#38bdf8" stroke-width="1.8" stroke-opacity="0.7"/>
+              <circle id="SOUTH-RED" class="visor-lamp red" cx="16" cy="18" r="10" fill="#2d1212" stroke="#4a1515" stroke-width="1.5"/>
+              <circle id="SOUTH-YELLOW" class="visor-lamp yellow" cx="16" cy="43" r="10" fill="#2d2212" stroke="#4a3715" stroke-width="1.5"/>
+              <circle id="SOUTH-GREEN" class="visor-lamp green" cx="16" cy="68" r="10" fill="#122d1f" stroke="#154a2a" stroke-width="1.5"/>
+              <rect x="-88" y="14" width="82" height="56" rx="9" fill="#090f1d" stroke="#334155" stroke-width="1.5"/>
+              <text x="-47" y="30" font-size="10" fill="#38bdf8" font-weight="800" text-anchor="middle">NAM (P5-7)</text>
+              <text id="badge-SOUTH" x="-47" y="45" font-size="9" fill="#f87171" font-weight="800" text-anchor="middle">DỪNG LẠI</text>
+              <text id="cnt-SOUTH" x="-47" y="60" font-size="9" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-weight="700" text-anchor="middle">🚗 0 xe</text>
+            </g>
+
+            <!-- ĐÔNG (EAST - Pin 8,9,10) -->
+            <g transform="translate(454, 412)">
+              <rect x="0" y="0" width="86" height="32" rx="9" fill="#080d18" stroke="#38bdf8" stroke-width="1.8" stroke-opacity="0.7"/>
+              <circle id="EAST-RED" class="visor-lamp red" cx="18" cy="16" r="10" fill="#2d1212" stroke="#4a1515" stroke-width="1.5"/>
+              <circle id="EAST-YELLOW" class="visor-lamp yellow" cx="43" cy="16" r="10" fill="#2d2212" stroke="#4a3715" stroke-width="1.5"/>
+              <circle id="EAST-GREEN" class="visor-lamp green" cx="68" cy="16" r="10" fill="#122d1f" stroke="#154a2a" stroke-width="1.5"/>
+              <rect x="2" y="38" width="82" height="56" rx="9" fill="#090f1d" stroke="#334155" stroke-width="1.5"/>
+              <text x="43" y="54" font-size="10" fill="#38bdf8" font-weight="800" text-anchor="middle">ĐÔNG (P8-10)</text>
+              <text id="badge-EAST" x="43" y="69" font-size="9" fill="#f87171" font-weight="800" text-anchor="middle">DỪNG LẠI</text>
+              <text id="cnt-EAST" x="43" y="84" font-size="9" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-weight="700" text-anchor="middle">🚗 0 xe</text>
+            </g>
+
+            <!-- TÂY (WEST - Pin 11,12,13) -->
+            <g transform="translate(60, 156)">
+              <rect x="0" y="0" width="86" height="32" rx="9" fill="#080d18" stroke="#38bdf8" stroke-width="1.8" stroke-opacity="0.7"/>
+              <circle id="WEST-RED" class="visor-lamp red" cx="18" cy="16" r="10" fill="#2d1212" stroke="#4a1515" stroke-width="1.5"/>
+              <circle id="WEST-YELLOW" class="visor-lamp yellow" cx="43" cy="16" r="10" fill="#2d2212" stroke="#4a3715" stroke-width="1.5"/>
+              <circle id="WEST-GREEN" class="visor-lamp green" cx="68" cy="16" r="10" fill="#122d1f" stroke="#154a2a" stroke-width="1.5"/>
+              <rect x="2" y="-62" width="82" height="56" rx="9" fill="#090f1d" stroke="#334155" stroke-width="1.5"/>
+              <text x="43" y="-46" font-size="10" fill="#38bdf8" font-weight="800" text-anchor="middle">TÂY (P11-13)</text>
+              <text id="badge-WEST" x="43" y="-31" font-size="9" fill="#f87171" font-weight="800" text-anchor="middle">DỪNG LẠI</text>
+              <text id="cnt-WEST" x="43" y="-16" font-size="9" fill="#cbd5e1" font-family="'JetBrains Mono', monospace" font-weight="700" text-anchor="middle">🚗 0 xe</text>
+            </g>
+          </svg>
+        </div>
+
+        <!-- MẬT ĐỘ PHƯƠNG TIỆN & TRỌNG SỐ ƯU TIÊN 4 HƯỚNG -->
+        <div class="density-container">
+          <div class="section-sub-title">
+            <span>📊 Phân Tích Mật Độ & Thời Gian Chờ 4 Hướng</span>
+            <span style="color:#38bdf8;font-family:'JetBrains Mono',monospace;font-size:0.7rem;">Score = 0.6×Count + 0.4×Wait</span>
+          </div>
+          <div class="density-cards-grid">
+            <div class="density-box" id="den-box-NORTH">
+              <div class="density-box-top">
+                <span class="den-dir-name">⬆️ BẮC (NORTH)</span>
+                <span class="den-qty" id="qty-NORTH">0 xe</span>
+              </div>
+              <div class="den-meter-bar">
+                <div class="den-meter-fill" id="bar-NORTH"></div>
+              </div>
+              <div class="density-box-bot">
+                <span class="den-status-chip low" id="lv-NORTH">Thông thoáng</span>
+                <span class="den-wait" id="wt-sub-NORTH">Đã chờ: 0s</span>
+              </div>
+            </div>
+
+            <div class="density-box" id="den-box-SOUTH">
+              <div class="density-box-top">
+                <span class="den-dir-name">⬇️ NAM (SOUTH)</span>
+                <span class="den-qty" id="qty-SOUTH">0 xe</span>
+              </div>
+              <div class="den-meter-bar">
+                <div class="den-meter-fill" id="bar-SOUTH"></div>
+              </div>
+              <div class="density-box-bot">
+                <span class="den-status-chip low" id="lv-SOUTH">Thông thoáng</span>
+                <span class="den-wait" id="wt-sub-SOUTH">Đã chờ: 0s</span>
+              </div>
+            </div>
+
+            <div class="density-box" id="den-box-EAST">
+              <div class="density-box-top">
+                <span class="den-dir-name">➡️ ĐÔNG (EAST)</span>
+                <span class="den-qty" id="qty-EAST">0 xe</span>
+              </div>
+              <div class="den-meter-bar">
+                <div class="den-meter-fill" id="bar-EAST"></div>
+              </div>
+              <div class="density-box-bot">
+                <span class="den-status-chip low" id="lv-EAST">Thông thoáng</span>
+                <span class="den-wait" id="wt-sub-EAST">Đã chờ: 0s</span>
+              </div>
+            </div>
+
+            <div class="density-box" id="den-box-WEST">
+              <div class="density-box-top">
+                <span class="den-dir-name">⬅️ TÂY (WEST)</span>
+                <span class="den-qty" id="qty-WEST">0 xe</span>
+              </div>
+              <div class="den-meter-bar">
+                <div class="den-meter-fill" id="bar-WEST"></div>
+              </div>
+              <div class="density-box-bot">
+                <span class="den-status-chip low" id="lv-WEST">Thông thoáng</span>
+                <span class="den-wait" id="wt-sub-WEST">Đã chờ: 0s</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+
+    </section>
+
+    <!-- CỘT PHẢI: Màn Hình LCD 16x2 I2C, Biểu đồ & Thông số phần cứng -->
+    <section class="col-right">
+
+      <!-- MÔ PHỎNG MÀN HÌNH LCD 16x2 I2C ĐỒNG BỘ ARDUINO UNO -->
+      <div class="card virtual-lcd-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-icon">📟</span>
+            <span class="card-title">Màn Hình LCD 1602 I2C (Uno A4/A5)</span>
+          </div>
+          <span class="badge badge-lcd-hw" id="badge-lcd-hw">CHẾ ĐỘ ẢO</span>
+        </div>
+
+        <p class="lcd-guide-note">
+          Đồng bộ thời gian thực với màn hình LCD 1602 I2C cắm trên chân <strong>A4 (SDA) / A5 (SCL)</strong> của Arduino Uno R3:
+        </p>
+
+        <div class="lcd-pcb-chassis" id="lcd-chassis">
+          <div class="screw screw-tl"></div>
+          <div class="screw screw-tr"></div>
+          <div class="screw screw-bl"></div>
+          <div class="screw screw-br"></div>
+
+          <div class="pcb-header-bar">
+            <div class="pcb-brand">
+              <span class="pcb-logo">HD44780</span>
+              <span class="pcb-sub">UNO I2C 0x27</span>
+            </div>
+            <div class="pcb-pins">
+              <span class="pin-tag">GND</span>
+              <span class="pin-tag">5V</span>
+              <span class="pin-tag sda">A4:SDA</span>
+              <span class="pin-tag scl">A5:SCL</span>
+            </div>
+            <div class="pcb-pwr-led">
+              <span class="pwr-dot" title="Đèn nguồn 5V"></span>
+              <span class="pwr-text">PWR</span>
+            </div>
+          </div>
+
+          <div class="lcd-bezel">
+            <div class="lcd-glass-screen theme-blue" id="lcd-glass">
+              <div class="lcd-matrix-row" id="lcd-row-1"></div>
+              <div class="lcd-matrix-row" id="lcd-row-2"></div>
+            </div>
+          </div>
+
+          <div class="pcb-footer-bar">
+            <div class="potentiometer-box" title="Chiết áp chỉnh độ tương phản">
+              <div class="pot-dial"></div>
+              <span class="pot-lbl">CONTRAST ADJ</span>
+            </div>
+
+            <div class="lcd-theme-toggles">
+              <button class="lcd-theme-btn active" id="btn-lcd-blue" onclick="setLcdTheme('blue')">🔵 Xanh Dương</button>
+              <button class="lcd-theme-btn" id="btn-lcd-green" onclick="setLcdTheme('green')">🟢 Xanh Lá</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="lcd-sub-controls">
+          <div class="lcd-status-msg" id="lcd-diag-msg">
+            ⏳ Đang kiểm tra kết nối cổng COM Arduino Uno...
+          </div>
+          <button class="lcd-reconnect-btn" id="btn-lcd-reconnect" onclick="reconnectLcd()">🔄 Quét Cổng COM & Kết Nối Lại Arduino Uno</button>
+        </div>
+      </div>
+
+      <!-- Biểu đồ lưu lượng theo thời gian thực -->
+      <div class="card chart-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-icon">📈</span>
+            <span class="card-title">Biểu Đồ Biến Thiên Lưu Lượng Xe</span>
+          </div>
+        </div>
+        <canvas id="chartVehicles" height="165"></canvas>
+      </div>
+
+      <!-- Trạng thái kết nối phần cứng -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-icon">💻</span>
+            <span class="card-title">Chẩn Đoán Phần Cứng Master – Slave</span>
+          </div>
+        </div>
+        <div class="sys-grid">
+          <div class="sys-item">
+            <span class="sys-label">Arduino Uno R3 (USB COM)</span>
+            <span class="tag ok" id="hw-gpio">ĐANG DÒ...</span>
+          </div>
+          <div class="sys-item">
+            <span class="sys-label">Màn Hình LCD 1602 (Uno A4/A5)</span>
+            <span class="tag sim" id="hw-lcd">MÔ PHỎNG</span>
+          </div>
+          <div class="sys-item">
+            <span class="sys-label">Camera USB (Pi 5 V4L2)</span>
+            <span class="tag ok" id="hw-cam">SẴN SÀNG</span>
+          </div>
+          <div class="sys-item">
+            <span class="sys-label">Bộ Điều Khiển FSM</span>
+            <span class="tag ok" id="hw-ctrl">ACTIVE (115200 bps)</span>
+          </div>
+          <div class="sys-item">
+            <span class="sys-label">Tổng Số Pha Đã Chuyển</span>
+            <span class="tag num" id="hw-phase">1</span>
+          </div>
+          <div class="sys-item">
+            <span class="sys-label">Thời Gian Chờ Bắc / Nam</span>
+            <span class="tag num" id="wt-NORTH-SOUTH">0s / 0s</span>
+          </div>
+          <div class="sys-item">
+            <span class="sys-label">Thời Gian Chờ Đông / Tây</span>
+            <span class="tag num" id="wt-EAST-WEST">0s / 0s</span>
+          </div>
+          <button class="lcd-reconnect-btn" id="btn-lcd-reconnect-sys" onclick="reconnectLcd()">🔄 Làm Mới Kết Nối COM Arduino Uno</button>
+        </div>
+      </div>
+
+      <!-- Nhật ký chuyển pha -->
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-icon">📋</span>
+            <span class="card-title">Nhật Ký Chuyển Pha Thời Gian Thực</span>
+          </div>
+        </div>
+        <div class="log-wrap" id="phase-log">
+          <div class="log-empty">Đang ghi nhận lịch sử chuyển pha...</div>
+        </div>
+      </div>
+
+    </section>
+
+  </main>
+
+</div>
+
+<script src="/static/js/dashboard.js?v=7.0"></script>
+</body>
+</html>

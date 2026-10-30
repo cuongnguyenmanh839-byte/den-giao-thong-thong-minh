@@ -1,0 +1,375 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Camera AI Nhận Diện – Smart Traffic Command Center</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg-deep: #04070f;
+  --bg-card: rgba(13, 21, 38, 0.88);
+  --bg-inner: rgba(20, 31, 56, 0.75);
+  --border-subtle: rgba(148, 163, 184, 0.14);
+  --border-light: rgba(56, 189, 248, 0.3);
+  --text-primary: #f8fafc;
+  --text-secondary: #cbd5e1;
+  --text-muted: #64748b;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  background-color: var(--bg-deep);
+  background-image:
+    radial-gradient(circle at 15% 0%, rgba(37, 99, 235, 0.16) 0%, transparent 45%),
+    radial-gradient(circle at 85% 0%, rgba(6, 182, 212, 0.14) 0%, transparent 45%),
+    linear-gradient(rgba(255, 255, 255, 0.018) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255, 255, 255, 0.018) 1px, transparent 1px);
+  background-size: 100% 100%, 100% 100%, 36px 36px, 36px 36px;
+  color: var(--text-primary);
+  font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+  min-height: 100vh;
+  line-height: 1.5;
+}
+
+.app { max-width: 1740px; margin: 0 auto; padding: 14px 20px 28px; }
+
+/* Header */
+.header {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 14px 24px;
+  background: linear-gradient(135deg, rgba(15, 23, 42, 0.92), rgba(9, 14, 28, 0.95));
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(56, 189, 248, 0.22);
+  border-radius: var(--radius-xl);
+  margin-bottom: 18px;
+  box-shadow: 0 12px 36px rgba(0, 0, 0, 0.65);
+  position: relative; overflow: hidden;
+}
+.header::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px;
+  background: linear-gradient(90deg, transparent, #3b82f6, #06b6d4, #10b981, transparent);
+}
+.header-left { display: flex; align-items: center; gap: 16px; }
+.logo-box {
+  width: 52px; height: 52px;
+  background: linear-gradient(135deg, #1e293b 0%, #090d16 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.45);
+  border-radius: 14px; display: flex; align-items: center; justify-content: center; font-size: 26px;
+}
+.title-badge-row { display: flex; align-items: center; gap: 10px; }
+.sys-tag {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.65rem; font-weight: 800;
+  padding: 2px 8px; border-radius: 6px; background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.4); color: #38bdf8;
+}
+.header-title {
+  font-size: 1.3rem; font-weight: 800;
+  background: linear-gradient(90deg, #ffffff 0%, #bae6fd 60%, #38bdf8 100%);
+  -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent;
+}
+.header-sub { font-size: 0.78rem; color: var(--text-secondary); margin-top: 2px; }
+.header-right { display: flex; align-items: center; gap: 14px; }
+.header-nav {
+  display: flex; align-items: center; gap: 6px;
+  background: #060a14; padding: 5px; border-radius: 99px; border: 1px solid var(--border-subtle);
+}
+.nav-item {
+  text-decoration: none; font-size: 0.78rem; font-weight: 700;
+  padding: 7px 16px; border-radius: 99px; color: var(--text-secondary); transition: all 0.2s;
+}
+.nav-item:hover { color: #fff; background: rgba(255, 255, 255, 0.06); }
+.nav-item.active {
+  background: linear-gradient(135deg, #2563eb, #0284c7); color: #fff;
+  box-shadow: 0 4px 14px rgba(37, 99, 235, 0.45);
+}
+.status-pill {
+  display: flex; align-items: center; gap: 8px; padding: 7px 15px; border-radius: 99px;
+  font-size: 0.78rem; font-weight: 700; background: rgba(16, 185, 129, 0.12);
+  border: 1px solid rgba(16, 185, 129, 0.4); color: #34d399;
+}
+.pulse-dot {
+  width: 8px; height: 8px; border-radius: 50%; background: #10b981;
+  box-shadow: 0 0 8px #10b981; animation: pulseDot 1.6s infinite ease-in-out;
+}
+@keyframes pulseDot { 0%, 100% { transform: scale(0.9); opacity: 0.8; } 50% { transform: scale(1.25); opacity: 1; } }
+.clock-box {
+  font-family: 'JetBrains Mono', monospace; font-size: 1.05rem; font-weight: 800;
+  color: #38bdf8; padding: 7px 14px; background: #060a14;
+  border: 1px solid rgba(56, 189, 248, 0.25); border-radius: 10px;
+}
+
+/* Camera Layout */
+.camera-layout {
+  display: grid;
+  grid-template-columns: 1fr 390px;
+  gap: 20px;
+  align-items: start;
+}
+.card {
+  background: var(--bg-card); backdrop-filter: blur(16px);
+  border: 1px solid var(--border-subtle); border-radius: var(--radius-lg);
+  padding: 18px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+}
+.card-header {
+  display: flex; justify-content: space-between; align-items: center;
+  margin-bottom: 14px; padding-bottom: 11px; border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+}
+.card-title-group { display: flex; align-items: center; gap: 9px; }
+.card-icon {
+  width: 28px; height: 28px; border-radius: 7px;
+  background: rgba(56, 189, 248, 0.12); border: 1px solid rgba(56, 189, 248, 0.25);
+  display: flex; align-items: center; justify-content: center; font-size: 0.95rem;
+}
+.card-title { font-size: 0.95rem; font-weight: 800; color: #fff; }
+.cam-controls-top { display: flex; align-items: center; gap: 10px; }
+.cam-action-btn {
+  padding: 7px 14px; border-radius: 8px;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+  background: rgba(56, 189, 248, 0.14); color: #38bdf8;
+  font-size: 0.76rem; font-weight: 800; cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.cam-action-btn:hover { background: rgba(56, 189, 248, 0.28); }
+.live-badge {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.7rem; font-weight: 800;
+  padding: 4px 10px; border-radius: 6px;
+  background: rgba(239, 68, 68, 0.18); border: 1px solid rgba(239, 68, 68, 0.5); color: #fca5a5;
+}
+
+.large-video-wrapper {
+  width: 100%; background: #050811; border: 2px solid rgba(56, 189, 248, 0.25);
+  border-radius: 14px; overflow: hidden; display: flex; justify-content: center; align-items: center;
+  min-height: 460px; box-shadow: inset 0 0 50px rgba(0, 0, 0, 0.9);
+}
+.large-video-wrapper img { width: 100%; max-height: 560px; object-fit: contain; display: block; }
+
+.cam-stats-bar {
+  display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-top: 14px;
+}
+.stat-pill {
+  background: #080d1a; border: 1px solid var(--border-subtle);
+  padding: 8px 12px; border-radius: 8px; font-size: 0.75rem;
+  display: flex; justify-content: space-between; align-items: center;
+}
+.stat-k { color: var(--text-muted); font-weight: 600; }
+.stat-v { font-family: 'JetBrains Mono', monospace; color: #38bdf8; font-weight: 800; }
+
+.camera-sidebar { display: flex; flex-direction: column; gap: 18px; }
+.cam-phase-preview {
+  background: #080d1a; border: 1px solid var(--border-subtle);
+  border-radius: 14px; padding: 18px; text-align: center;
+}
+.preview-active-dir { font-size: 1.15rem; font-weight: 900; color: #fff; margin-bottom: 6px; }
+.preview-color-badge {
+  display: inline-block; padding: 4px 14px; border-radius: 99px;
+  font-size: 0.76rem; font-weight: 800; margin-bottom: 10px;
+  background: rgba(16, 185, 129, 0.18); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.4);
+}
+.preview-color-badge.yellow { background: rgba(245, 158, 11, 0.18); color: #fbbf24; border-color: rgba(245, 158, 11, 0.4); }
+.preview-color-badge.red { background: rgba(239, 68, 68, 0.18); color: #f87171; border-color: rgba(239, 68, 68, 0.4); }
+.preview-countdown {
+  font-family: 'JetBrains Mono', monospace; font-size: 2.8rem; font-weight: 900; line-height: 1;
+}
+.preview-countdown small { font-size: 1.2rem; margin-left: 2px; }
+
+.cam-counts-list { display: flex; flex-direction: column; gap: 8px; }
+.cam-count-row {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 10px 14px; background: #080d1a; border: 1px solid var(--border-subtle); border-radius: 10px;
+}
+.cam-count-label { font-size: 0.8rem; font-weight: 800; color: #e2e8f0; }
+.cam-count-num {
+  font-family: 'JetBrains Mono', monospace; font-size: 0.92rem; font-weight: 800;
+  color: #38bdf8; background: rgba(56, 189, 248, 0.12); padding: 2px 10px; border-radius: 6px;
+}
+
+.cam-guide-list { padding-left: 18px; font-size: 0.76rem; color: var(--text-secondary); display: flex; flex-direction: column; gap: 8px; margin-bottom: 14px; }
+.back-dashboard-btn {
+  display: block; text-align: center; text-decoration: none;
+  padding: 10px 14px; border-radius: 10px;
+  background: linear-gradient(135deg, #2563eb, #0284c7); color: #fff;
+  font-size: 0.8rem; font-weight: 800; box-shadow: 0 4px 14px rgba(37, 99, 235, 0.4);
+}
+@media (max-width: 1100px) {
+  .camera-layout { grid-template-columns: 1fr; }
+  .cam-stats-bar { grid-template-columns: repeat(2, 1fr); }
+}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <header class="header">
+    <div class="header-left">
+      <div class="logo-box">📷</div>
+      <div>
+        <div class="title-badge-row">
+          <span class="sys-tag">AI VISION STREAM</span>
+          <h1 class="header-title">TRUNG TÂM THỊ GIÁC MÁY TÍNH & NHẬN DIỆN MẬT ĐỘ XE</h1>
+        </div>
+        <p class="header-sub">Raspberry Pi 5 • OpenCV MOG2 / YOLOv8 • Phân vùng 4 hướng ROI thời gian thực</p>
+      </div>
+    </div>
+    <div class="header-right">
+      <nav class="header-nav">
+        <a href="/" class="nav-item">🚦 Bản Đồ Số Giao Lộ</a>
+        <a href="/camera" class="nav-item active">📷 Camera AI Trực Tiếp</a>
+      </nav>
+      <div class="status-pill connected" id="sys-status">
+        <span class="pulse-dot"></span>
+        <span id="sys-status-text">Vision Stream Online</span>
+      </div>
+      <div class="clock-box" id="clock">--:--:--</div>
+    </div>
+  </header>
+
+  <main class="camera-layout">
+    <div class="camera-main-panel">
+      <div class="card cam-display-card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-icon">📹</span>
+            <span class="card-title">Luồng Video Trực Tiếp (/dev/video0)</span>
+          </div>
+          <div class="cam-controls-top">
+            <button class="cam-action-btn" id="btn-toggle-zones" onclick="toggleZones()">👁️ Bật/Tắt Khung ROI 4 Hướng</button>
+            <span class="live-badge">● LIVE STREAM</span>
+          </div>
+        </div>
+
+        <div class="large-video-wrapper">
+          <img id="cam-img" src="/video_feed" alt="Camera Feed" onerror="this.src='/static/img/no_cam.svg'">
+        </div>
+
+        <div class="cam-stats-bar">
+          <div class="stat-pill"><span class="stat-k">Tốc độ xử lý:</span> <strong id="cam-fps" class="stat-v">-- FPS</strong></div>
+          <div class="stat-pill"><span class="stat-k">Độ phân giải:</span> <strong class="stat-v">640 × 480 px</strong></div>
+          <div class="stat-pill"><span class="stat-k">Giao tiếp chấp hành:</span> <strong class="stat-v">Uno R3 (Pin 2→13)</strong></div>
+          <div class="stat-pill"><span class="stat-k">Thuật toán:</span> <strong class="stat-v">Hybrid AI / MOG2</strong></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="camera-sidebar">
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-icon">🚦</span>
+            <span class="card-title">Pha Đèn Đang Kích Hoạt</span>
+          </div>
+        </div>
+        <div class="cam-phase-preview">
+          <div class="preview-active-dir" id="cam-active-dir">HƯỚNG ĐÔNG</div>
+          <div class="preview-color-badge" id="cam-active-color">ĐÈN XANH</div>
+          <div class="preview-countdown" id="cam-countdown">25<small>s</small></div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-icon">🚗</span>
+            <span class="card-title">Số Lượng Xe Phát Hiện</span>
+          </div>
+        </div>
+        <div class="cam-counts-list">
+          <div class="cam-count-row">
+            <span class="cam-count-label">⬆️ BẮC (NORTH)</span>
+            <span class="cam-count-num" id="cam-cnt-NORTH">0 xe</span>
+          </div>
+          <div class="cam-count-row">
+            <span class="cam-count-label">⬇️ NAM (SOUTH)</span>
+            <span class="cam-count-num" id="cam-cnt-SOUTH">0 xe</span>
+          </div>
+          <div class="cam-count-row">
+            <span class="cam-count-label">➡️ ĐÔNG (EAST)</span>
+            <span class="cam-count-num" id="cam-cnt-EAST">0 xe</span>
+          </div>
+          <div class="cam-count-row">
+            <span class="cam-count-label">⬅️ TÂY (WEST)</span>
+            <span class="cam-count-num" id="cam-cnt-WEST">0 xe</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <div class="card-header">
+          <div class="card-title-group">
+            <span class="card-icon">💡</span>
+            <span class="card-title">Hướng Dẫn Căn Góc Camera</span>
+          </div>
+        </div>
+        <ul class="cam-guide-list">
+          <li><strong>Góc đặt chuẩn:</strong> Đặt camera từ trên cao chếch 45°–60° nhìn bao quát 4 nhánh ngã tư.</li>
+          <li><strong>Khung ROI:</strong> Nhấn nút <em>"Bật/Tắt Khung ROI 4 Hướng"</em> để căn chỉnh các làn Bắc, Nam, Đông, Tây.</li>
+          <li><strong>Thử nghiệm:</strong> Đẩy xe mô hình vào từng nhánh để quan sát số xe cập nhật tức thì về bộ điều khiển.</li>
+        </ul>
+        <a href="/" class="back-dashboard-btn">← Quay Lại Bản Đồ Số Giao Lộ</a>
+      </div>
+    </div>
+  </main>
+
+</div>
+
+<script>
+'use strict';
+const DIRS = ['NORTH', 'SOUTH', 'EAST', 'WEST'];
+const DIR_VN = { NORTH: 'HƯỚNG BẮC', SOUTH: 'HƯỚNG NAM', EAST: 'HƯỚNG ĐÔNG', WEST: 'HƯỚNG TÂY' };
+const COLOR_VN = { GREEN: 'ĐÈN XANH (CHO ĐI)', YELLOW: 'ĐÈN VÀNG', RED: 'ĐÈN ĐỎ' };
+
+function updateClock() {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString('vi-VN');
+}
+setInterval(updateClock, 1000); updateClock();
+
+async function pollCamera() {
+  try {
+    const [status, vision] = await Promise.all([
+      fetch('/api/status').then(r => r.json()),
+      fetch('/api/vision').then(r => r.json())
+    ]);
+    document.getElementById('cam-fps').textContent = (vision.fps || 0) + ' FPS';
+
+    const activeDir = status.active_dir || 'NORTH';
+    const activeColor = status.active_color || 'RED';
+    const remaining = status.time_remaining != null ? status.time_remaining : 0;
+
+    document.getElementById('cam-active-dir').textContent = DIR_VN[activeDir] || activeDir;
+    const colBadge = document.getElementById('cam-active-color');
+    colBadge.textContent = COLOR_VN[activeColor] || activeColor;
+    colBadge.className = 'preview-color-badge ' + (activeColor.toLowerCase());
+
+    const cd = document.getElementById('cam-countdown');
+    cd.innerHTML = remaining + '<small>s</small>';
+    cd.style.color = activeColor === 'GREEN' ? '#10b981' : activeColor === 'YELLOW' ? '#f59e0b' : '#ef4444';
+
+    const counts = vision.counts || {};
+    DIRS.forEach(d => {
+      const el = document.getElementById('cam-cnt-' + d);
+      if (el) el.textContent = (counts[d] || 0) + ' xe';
+    });
+  } catch (e) {
+    console.error('pollCamera error', e);
+  }
+}
+
+async function toggleZones() {
+  try {
+    const res = await fetch('/api/vision/toggle_zones', { method: 'POST' });
+    const data = await res.json();
+    const btn = document.getElementById('btn-toggle-zones');
+    if (btn) btn.textContent = data.show_zones ? '👁️ Đang Hiện Khung ROI' : '👁️ Bật/Tắt Khung ROI 4 Hướng';
+  } catch (e) {
+    console.error('toggleZones error', e);
+  }
+}
+
+pollCamera();
+setInterval(pollCamera, 1000);
+</script>
+</body>
+</html>
